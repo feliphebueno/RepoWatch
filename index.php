@@ -27,6 +27,7 @@
 *    Cópias da licença disponíveis em /Sappiens/_doc/licenca
 *
 */
+require __DIR__ . '/vendor/autoload.php';
 
 require 'Config.php';
 

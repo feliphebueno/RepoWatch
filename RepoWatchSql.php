@@ -43,8 +43,46 @@ class RepoWatchSql
 
     public function __construct()
     {
-        $this->banco = '';
-        $this->con = Conexao::conectar($this->banco);
-    }    
+        $this->con = Conexao::conectar('siprevcl_bd');
+    }
+    
+    public function getContributorSql($id)
+    {
+        $qb = $this->con->qb('siprevcl_bd');
+        
+        $qb->select('*')
+           ->from('contributor')
+           ->where($qb->expr()->eq('contributorId', ':id'))
+           ->setMaxResults(1)
+           ->setParameter('id', $id, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+    
+    public function getRepositorioSql($id)
+    {
+        $qb = $this->con->qb('siprevcl_bd');
+        
+        $qb->select('*')
+           ->from('repositorio')
+           ->where($qb->expr()->eq('repositorioId', ':id'))
+           ->setMaxResults(1)
+           ->setParameter('id', $id, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+
+    public function getBranchSql($nome)
+    {
+        $qb = $this->con->qb('siprevcl_bd');
+        
+        $qb->select('*')
+           ->from('repositorio_branch')
+           ->where($qb->expr()->eq('repositorioBranchNome', ':nome'))
+           ->setMaxResults(1)
+           ->setParameter('nome', $nome, \PDO::PARAM_STR);
+
+        return $qb;
+    }
     
 }

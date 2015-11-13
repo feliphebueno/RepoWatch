@@ -1,39 +1,36 @@
 <?php
-
 /**
- *
- *    Sappiens Framework
- *    Copyright (C) 2014, BRA Consultoria
- *
- *    Website do autor: www.braconsultoria.com.br/sappiens
- *    Email do autor: sappiens@braconsultoria.com.br
- *
- *    Website do projeto, equipe e documentação: www.sappiens.com.br
- *   
- *    Este programa é software livre; você pode redistribuí-lo e/ou
- *    modificá-lo sob os termos da Licença Pública Geral GNU, conforme
- *    publicada pela Free Software Foundation, versão 2.
- *
- *    Este programa é distribuído na expectativa de ser útil, mas SEM
- *    QUALQUER GARANTIA; sem mesmo a garantia implícita de
- *    COMERCIALIZAÇÃO ou de ADEQUAÇÃO A QUALQUER PROPÓSITO EM
- *    PARTICULAR. Consulte a Licença Pública Geral GNU para obter mais
- *    detalhes.
- * 
- *    Você deve ter recebido uma cópia da Licença Pública Geral GNU
- *    junto com este programa; se não, escreva para a Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *    02111-1307, USA.
- *
- *    Cópias da licença disponíveis em /Sappiens/_doc/licenca
- *
- *    @author Pablo Vanni <pablovanni@gmail.com>
- *    @author Vinicius Pozzebon <vpozzebon@gmail.com>
- *    @author Feliphe Bueno <feliphezion@gmail.com>
- * 
- */
+*
+*    Sappiens Framework
+*    Copyright (C) 2014, BRA Consultoria
+*
+*    Website do autor: www.braconsultoria.com.br/sappiens
+*    Email do autor: sappiens@braconsultoria.com.br
+*
+*    Website do projeto, equipe e documentação: www.sappiens.com.br
+*   
+*    Este programa é software livre; você pode redistribuí-lo e/ou
+*    modificá-lo sob os termos da Licença Pública Geral GNU, conforme
+*    publicada pela Free Software Foundation, versão 2.
+*
+*    Este programa é distribuído na expectativa de ser útil, mas SEM
+*    QUALQUER GARANTIA; sem mesmo a garantia implícita de
+*    COMERCIALIZAÇÃO ou de ADEQUAÇÃO A QUALQUER PROPÓSITO EM
+*    PARTICULAR. Consulte a Licença Pública Geral GNU para obter mais
+*    detalhes.
+* 
+*    Você deve ter recebido uma cópia da Licença Pública Geral GNU
+*    junto com este programa; se não, escreva para a Free Software
+*    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+*    02111-1307, USA.
+*
+*    Cópias da licença disponíveis em /Sappiens/_doc/licenca
+*
+*/
 
-namespace App;
+namespace RepoWatch;
+
+require_once '../SiprevCloud/App/ConfigLite.php';
 
 class Config
 {
@@ -48,42 +45,26 @@ class Config
             \session_start();
         }
 
-        \header('Content-Type: text/html; charset=utf-8');
+        require_once('../SiprevCloud/App/ConfigDatabase.php');                        
+         //= (new \App\ConfigDatabase())->dataBases();
 
-        \define('SIS_DEBUG', true);
-        \define('SIS_CHAT', false);
-        \define('SIS_RELEASE', 'Developer');   
+        \App\Config::$SIS_CFG['bases']['siprevcl_bd'] = [
+            'host'      => '186.226.56.109',
+            'banco'     => 'siprevcl_bd',
+            'usuario'   => 'siprevcl_user',
+            'senha'     => 'v6n5g0a9',
+            'driver'    => 'pdo_mysql'
+        ];
         
-        //Facebook API.
-        \define('SIS_FACEBOOK_APP_ID', '701328309997991');
-        \define('SIS_FACEBOOK_APP_SECRET', 'a2638e71d43ac8c1abaecfd356d0d8db');
-        
-        \define('SIS_EMBEDLY_API_KEY', 'fcea2657286948efb42b6bd786f8cf4a');
+        self::$SIS_CFG = \App\Config::$SIS_CFG;
 
-        \define('SIS_APP_ID', '0ff66a21fb1c73e661a92a02701126fe44e58918');
-        \define('SIS_NOME_PROJETO', 'SiprevCloud');
-        \define('SIS_NOME_PROJETO_SLOGAN', 'Gestão de RPPS online');
-        \define('SIS_AUTOR', 'BRA Consultoria');
-        \define('SIS_URL_BASE_TEMPLATE', 'PixelAdmin/1.3.0/');
-        \define('SIS_VENDOR_TEMPLATE', 'Pixel/1.3.0');
-        \define('SIS_STRING_CRYPT', '91278404eafff215ba0e9a400d652475');
-        \define('SIS_LINHAS_GRID', '10');
-        
-        require_once('../SiprevCloud/App/ConfigDatabase.php');                
-        require_once('../SiprevCloud/App/ConfigUrl.php');        
-        require_once('../SiprevCloud/App/ConfigMailer.php');          
-        
-        self::$SIS_CFG = (new ConfigDatabase())->dataBases();      
-        self::$SIS_CFG['mailAccounts'] = (new ConfigMailer())->mailers(); 
-
-        require_once \SIS_FM_BASE . 'Lib/vendor/autoload.php';
-        
+        require_once \SIS_FM_BASE . 'Lib/vendor/autoload.php';   
     }
 
     public static function conf()
     {
         if (!isset(self::$SIS_INSTANCIA)) {
-            self::$SIS_INSTANCIA = new \App\Config();
+            self::$SIS_INSTANCIA = new \RepoWatch\Config();
         }
 
         return self::$SIS_INSTANCIA;
@@ -91,7 +72,7 @@ class Config
 
 }
 
-\App\Config::conf();
+\RepoWatch\Config::conf();
 
 function sisErro($errno, $errstr, $errfile, $errline)
 {
@@ -119,7 +100,7 @@ function getErrorType($errno)
     return($erros[$errno] ? : $erros[6143]);
 }
 
-\set_error_handler("\\" . \SIS_ID_NAMESPACE_PROJETO . "\\sisErro", \E_WARNING | \E_NOTICE);
+\set_error_handler("\\RepoWatch\\sisErro", \E_WARNING | \E_NOTICE);
 
 require_once \SIS_FM_BASE . 'Lib/Zion/ClassLoader/Loader.php';
 

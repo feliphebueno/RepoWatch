@@ -48,15 +48,9 @@ class RepoWatchController extends Controller
     {
         $retorno = [];
         
-        $retorno['POST']        = \filter_input_array(\INPUT_POST);
-        $retorno['GET']         = \filter_input_array(\INPUT_GET);;
-        $retorno['COOKIES']     = $_COOKIE;
-        $retorno['SESSION']     = $_SESSION;
-        $retorno['SERVER']      = $_SERVER;
-        $retorno['FILES']       = $_FILES;
-        $retorno['Payload']     = \json_decode(\file_get_contents('php://input'), true);
+        $payload = \json_decode(\file_get_contents('php://input'), true);
 
-        $this->class->log(\json_encode($retorno));
+        $this->class->processaWebHook($payload);
 
         return parent::jsonSucesso('OK');
     }
