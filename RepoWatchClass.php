@@ -49,7 +49,7 @@ class RepoWatchClass extends RepoWatchSql
     {
         $this->cod = $cod;
         $this->con = Conexao::conectar();
-        $this->crudUtil = new CrudUtil('siprevcl_bd');
+        $this->crudUtil = new CrudUtil('siprevcl_prod');
 
         parent::__construct();
     }
@@ -62,79 +62,121 @@ class RepoWatchClass extends RepoWatchSql
     
     public function processaWebHook($payload)
     {
-        $dadosUser  = $this->getDadosUser($payload['comment']['user']);
-        $dadosRepo  = $this->getDadosRepo($payload['repository']);
-        $branches   = $this->getBranches($dadosRepo['repositorioCod'], $payload['repository']['branches_url']);
+        $this->crudUtil->startTransaction();
+        $dadosUser          = $this->getDadosUser($payload['comment']['user']);
+        $dadosRepo          = $this->getDadosRepo($payload['repository']);
+        $dadosBranches      = $this->getBranches($dadosRepo['repositorioCod'], $payload['repository']['branches_url']);
         
         print "Resultado da requisição: \n Dados User: \n";
         print_r($dadosUser);
         print "Dados Repo: \n";
         print_r($dadosRepo);
+        print "Dados Branch: \n";
+        print_r($dadosBranches);
+        $this->crudUtil->stopTransaction();
         exit;
     }
     
     private function getBranches($repositorioCod, $branches_url) 
     {
         $url = \preg_replace('/[\\{\/branch\\}]{9}/', '', $branches_url);
-        $branches = $this->getDadosAPI($url);
+        $dadosBranches = $this->getDadosAPI($url);
 
-        foreach($branches as $branch){
-            
+        $branches = [];
+        
+        foreach($dadosBranches as $branch){
+            $branches[$branch['name']] = $this->setBranches($repositorioCod, $branch);
         }
+        
+        return $branches;
     }
     
-    private function setBranches($dados)
+    private function setBranches($repositorioCod, $dados)
     {
         $name       = $dados['name'];
 
         $retorno = [
-            'branchNome'       => $name
+            'branchNome'        => $name,
         ];
         
         $branch = $this->con->execLinha(parent::getBranchSql($name));
         
         //User already exists.
         if(\count($branch) > 0){
-
-            $retorno['repositorioCod']  = $repositorio['repositoriocod'];
-
-        } else {
-
-            $urlUserAPI         = (isset($dados['url']) ? $dados['url'] : NULL);
-            $dadosRepositorio   = $this->getDadosAPI($urlUserAPI);
-            $dadosOwner         = $this->getDadosUser($dados['owner']);
+            $retorno['repositorioBranchCod']    = $branch['repositoriobranchcod'];
+            $repositorioBranchCod               = $branch['repositoriobranchcod'];
+        } else {         
 
             $objForm = new \App\Ext\Form\Form();
-            $objForm->set('repositorioOwnerCod', $dadosOwner['contributorCod']);
-            $objForm->set('repositorioId', $dadosRepositorio['id']);
-            $objForm->set('repositorioNome', $dadosRepositorio['name']);
-            $objForm->set('repositorioFullName', $dadosRepositorio['full_name']);
-            $objForm->set('repositorioDescricao', $dadosRepositorio['description']);
-            $objForm->set('repositorioPrivado', ($dadosRepositorio['private'] == 'true' ? 'S' : 'N'));
-            $objForm->set('repositorioUrl', $dadosRepositorio['html_url']);
-            $objForm->set('repositorioUrlTeam', $dadosRepositorio['teams_url']);
-            $objForm->set('repositorioUrlBranches', $dadosRepositorio['branches_url']);
-            $objForm->set('repositorioDataCriacao', $dadosRepositorio['created_at']);
-            $objForm->set('repositorioDataUltimaAtualizacao', $dadosRepositorio['updated_at']);
+            $objForm->set('repositorioCod', $repositorioCod);
+            $objForm->set('repositorioBranchNome', $name);
+            $objForm->set('repositorioBranchStatus', 'A');
 
             $campos = [
-                'repositorioOwnerCod',
-                'repositorioId',
-                'repositorioNome',
-                'repositorioFullName',
-                'repositorioDescricao',
-                'repositorioPrivado',
-                'repositorioUrl',
-                'repositorioUrlTeam',
-                'repositorioUrlBranches',
-                'repositorioDataCriacao',
-                'repositorioDataUltimaAtualizacao',
+                'repositorioCod',
+                'repositorioBranchNome',
+                'repositorioBranchStatus'
             ];
 
-            $repositorioCod = $this->crudUtil->insert('repositorio', $campos, $objForm, ['organogramaCod']);
-            $retorno['repositorioCod']  = $repositorioCod;
+            $repositorioBranchCod = $this->crudUtil->insert('repositorio_branch', $campos, $objForm, ['organogramaCod']);
+            $retorno['repositorioBranchCod']  = $repositorioBranchCod;
+        }
+        
+        $retorno['commits'] = [
+            $dados['commit']['sha'] = $this->getBranchCommits($repositorioBranchCod, $dados['commit'])
+        ];
+
+        return $retorno;
+    }
+    
+    private function getBranchCommits($repositorioBranchCod, $dados)
+    {
+        $sha    = $dados['sha'];
+
+        $retorno = [
+            'sha'        => $sha,
+        ];
+        
+        $commit = $this->con->execLinha(parent::getCommitSql($sha));
+        
+        //User already exists.
+        if(\count($commit) > 0){
+            $retorno['commitCod']    = $commit['repositoriobranchcommitcod'];
+        } else {
+
+            $dadosCommit        = $this->getDadosAPI($dados['url']);          
+            $contributor        = $this->getDadosUser($dadosCommit['author']);
+            
+            $objForm = new \App\Ext\Form\Form();
+            $objForm->set('repositorioBranchCod', $repositorioBranchCod);
+            $objForm->set('contributorCod', $contributor['contributorCod']);
+            $objForm->set('repositorioBranchCommitSha', $sha);
+            $objForm->set('repositorioBranchCommitMensagem', $dadosCommit['commit']['message']);
+            $objForm->set('repositorioBranchCommitUrl', $dadosCommit['html_url']);
+            $objForm->set('repositorioBranchCommitComentarios', $dadosCommit['commit']['comment_count']);
+            $objForm->set('repositorioBranchCommitAdicoes', $dadosCommit['stats']['additions']);
+            $objForm->set('repositorioBranchCommitRemocoes', $dadosCommit['stats']['deletions']);
+            $objForm->set('repositorioBranchCommitArquivos', \count($dadosCommit['files']));
+            $objForm->set('repositorioBranchCommitData', $dadosCommit['commit']['author']['date']);
+
+            $campos = [
+                'repositorioBranchCod',
+                'contributorCod',
+                'repositorioBranchCommitSha',
+                'repositorioBranchCommitMensagem',
+                'repositorioBranchCommitUrl',
+                'repositorioBranchCommitComentarios',
+                'repositorioBranchCommitAdicoes',
+                'repositorioBranchCommitRemocoes',
+                'repositorioBranchCommitArquivos',
+                'repositorioBranchCommitData'
+            ];
+
+            $repositorioBranchCommitCod             = $this->crudUtil->insert('repositorio_branch_commit', $campos, $objForm, ['organogramaCod']);
+            $retorno['repositorioBranchCommitCod']  = $repositorioBranchCommitCod;
         }
 
+        return $retorno;
     }
     
     private function getDadosRepo($dados)
@@ -230,6 +272,7 @@ class RepoWatchClass extends RepoWatchSql
             $objForm->set('contributorUltimaAtualizacao', $dadosContributor['updated_at']);
 
             $campos = [
+                'contributorNome',
                 'contributorLogin',
                 'contributorId',
                 'contributorEmail',

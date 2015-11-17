@@ -48,10 +48,10 @@ class Config
         require_once('../SiprevCloud/App/ConfigDatabase.php');                        
          //= (new \App\ConfigDatabase())->dataBases();
 
-        \App\Config::$SIS_CFG['bases']['siprevcl_bd'] = [
+        \App\Config::$SIS_CFG['bases']['siprevcl_prod'] = [
             'host'      => '186.226.56.109',
-            'banco'     => 'siprevcl_bd',
-            'usuario'   => 'siprevcl_user',
+            'banco'     => 'siprevcl_prod',
+            'usuario'   => 'siprevcl_prod',
             'senha'     => 'v6n5g0a9',
             'driver'    => 'pdo_mysql'
         ];

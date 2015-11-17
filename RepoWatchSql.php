@@ -43,12 +43,12 @@ class RepoWatchSql
 
     public function __construct()
     {
-        $this->con = Conexao::conectar('siprevcl_bd');
+        $this->con = Conexao::conectar('siprevcl_prod');
     }
     
     public function getContributorSql($id)
     {
-        $qb = $this->con->qb('siprevcl_bd');
+        $qb = $this->con->qb('siprevcl_prod');
         
         $qb->select('*')
            ->from('contributor')
@@ -61,7 +61,7 @@ class RepoWatchSql
     
     public function getRepositorioSql($id)
     {
-        $qb = $this->con->qb('siprevcl_bd');
+        $qb = $this->con->qb('siprevcl_prod');
         
         $qb->select('*')
            ->from('repositorio')
@@ -74,13 +74,26 @@ class RepoWatchSql
 
     public function getBranchSql($nome)
     {
-        $qb = $this->con->qb('siprevcl_bd');
+        $qb = $this->con->qb('siprevcl_prod');
         
         $qb->select('*')
            ->from('repositorio_branch')
            ->where($qb->expr()->eq('repositorioBranchNome', ':nome'))
            ->setMaxResults(1)
            ->setParameter('nome', $nome, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+
+    public function getCommitSql($sha)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+
+        $qb->select('*')
+           ->from('repositorio_branch_commit')
+           ->where($qb->expr()->eq('repositorioBranchCommitSha', ':sha'))
+           ->setMaxResults(1)
+           ->setParameter('sha', $sha, \PDO::PARAM_STR);
 
         return $qb;
     }

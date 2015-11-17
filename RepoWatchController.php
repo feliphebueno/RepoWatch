@@ -50,7 +50,17 @@ class RepoWatchController extends Controller
         
         $payload = \json_decode(\file_get_contents('php://input'), true);
 
-        $this->class->processaWebHook($payload);
+        try {
+            $this->class->processaWebHook($payload);
+        } catch (\Exception $e){
+            return \json_encode([
+                'sucesso' => false, 
+                'retorno' => [
+                    'mensagem' => $e->getMessage(),
+                    'erro' => '<pre>'. $e->getTraceAsString() .'</pre>'
+                ]
+            ]);
+        }
 
         return parent::jsonSucesso('OK');
     }
