@@ -77,10 +77,9 @@ class RepoWatchClass extends RepoWatchSql
         exit;
     }
     
-    private function getBranches($repositorioCod, $branches_url) 
+    public function getBranches($repositorioCod, $branches_url) 
     {
-        $url = \preg_replace('/[\\{\/branch\\}]{9}/', '', $branches_url);
-        $dadosBranches = $this->getDadosAPI($url);
+        $dadosBranches = $this->getDadosAPI($branches_url);
 
         $branches = [];
         
@@ -179,7 +178,7 @@ class RepoWatchClass extends RepoWatchSql
         return $retorno;
     }
     
-    private function getDadosRepo($dados)
+    public function getDadosRepo($dados)
     {
         $id         = $dados['id'];
         $name       = $dados['name'];
@@ -200,8 +199,8 @@ class RepoWatchClass extends RepoWatchSql
 
         } else {
 
-            $urlUserAPI         = (isset($dados['url']) ? $dados['url'] : NULL);
-            $dadosRepositorio   = $this->getDadosAPI($urlUserAPI);
+            $urlRepoAPI         = 'https://api.github.com/repos/'. $dados['full_name'];
+            $dadosRepositorio   = $this->getDadosAPI($urlRepoAPI);
             $dadosOwner         = $this->getDadosUser($dados['owner']);
 
             $objForm = new \App\Ext\Form\Form();
@@ -238,17 +237,99 @@ class RepoWatchClass extends RepoWatchSql
         return $retorno;
     }
     
-    private function getDadosUser($dados)
+    public function getDadosPullRequest($dados)
     {
-        $login  = $dados['login'];
-        $id     = $dados['id'];
+        $pullRequest = $dados['pull_request'];
+        
+        $id         = $pullRequest['id'];
+        $name       = $pullRequest['title'];
 
         $retorno = [
-            'login' => $login,
-            'id'    => $id
+            'titulo'       => $name,
+            'id'           => $id
         ];
         
-        $contributor = $this->con->execLinha(parent::getContributorSql($id));
+        $dadosPullRequest = $this->con->execLinha(parent::getPullRequestSql($id));
+        
+        //User already exists.
+        if(\count($dadosPullRequest) > 0){
+
+            $retorno['repositorioPullCod']  = $dadosPullRequest['repositoriopullcod'];
+            $merged = ($pullRequest['merged'] == 'true' ? 'M' : 'N');
+            
+            if($dadosPullRequest['repositoriopullstatus'] !== $merged){
+                $this->crudUtil->update('repositorio_pull', ['repositorioPullStatus'], $objForm, ['repositorioPullCod'], false, ['organogramaCod']);
+            }
+
+        } else {
+
+            $dadosUser         = $this->getDadosUser($pullRequest['user']);
+            $dadosRepo         = $this->getDadosRepo($dados['repository']);
+
+            $objForm = new \App\Ext\Form\Form();
+            $objForm->set('repositorioCod', $dadosRepo['repositorioCod']);
+            $objForm->set('contributorCod', $dadosUser['contributorCod']);
+            $objForm->set('repositorioPullId', $pullRequest['id']);
+            $objForm->set('repositorioPullTitulo', $pullRequest['title']);
+            $objForm->set('repositorioPullMensagem', $pullRequest['body']);
+            $objForm->set('repositorioPullUrl', $pullRequest['url']);
+            $objForm->set('repositorioPullMesclavel', ($pullRequest['mergeable'] == 'true' ? 'S' : 'N'));
+            $objForm->set('repositorioPullComentarios', $pullRequest['comments']);
+            $objForm->set('repositorioPullCommits', $pullRequest['commits']);
+            $objForm->set('repositorioPullAdicoes', $pullRequest['additions']);
+            $objForm->set('repositorioPullRemocoes', $pullRequest['deletions']);
+            $objForm->set('repositorioPullArquivosAlterados', $pullRequest['changed_files']);
+            $objForm->set('repositorioPullData', $pullRequest['created_at']);
+            $objForm->set('repositorioPullDataMerged', $pullRequest['merged_at']);
+            $objForm->set('repositorioPullStatus', ($pullRequest['merged'] == 'true' ? 'M' : 'N'));
+
+            $campos = [
+                'repositorioCod',
+                'contributorCod',
+                'repositorioPullId',
+                'repositorioPullTitulo',
+                'repositorioPullMensagem',
+                'repositorioPullUrl',
+                'repositorioPullMesclavel',
+                'repositorioPullComentarios',
+                'repositorioPullCommits',
+                'repositorioPullAdicoes',
+                'repositorioPullRemocoes',
+                'repositorioPullArquivosAlterados',
+                'repositorioPullData',
+                'repositorioPullDataMerged',
+                'repositorioPullStatus',
+            ];
+
+            $repositorioPullCod = $this->crudUtil->insert('repositorio_pull', $campos, $objForm, ['organogramaCod']);
+            $retorno['repositorioPullCod']  = $repositorioPullCod;
+        }
+
+        return $retorno;
+    }
+    
+    public function getDadosUser($dados)
+    {
+        if(isset($dados['login'])){
+            $login  = $dados['login'];
+            $id     = $dados['id'];
+
+            $retorno = [
+                'login' => $login,
+                'id'    => $id
+            ];
+            $contributor = $this->con->execLinha(parent::getContributorSql($login));
+        } else {
+            $userName   = $dados['name'];
+            $email      = $dados['email'];
+
+            $retorno = [
+                'userName'  => $userName,
+                'email' => $email
+            ];
+            
+            $contributor = $this->con->execLinha(parent::getContributorSql($userName));
+        }
         
         //User already exists.
         if(\count($contributor) > 0){
@@ -258,14 +339,14 @@ class RepoWatchClass extends RepoWatchSql
 
         } else {
 
-            $urlUserAPI     = (isset($dados['url']) ? $dados['url'] : NULL);
+            $urlUserAPI         = (isset($dados['url']) ? $dados['url'] : 'https://api.github.com/users/'. $userName);
             $dadosContributor   = $this->getDadosAPI($urlUserAPI);
 
             $objForm = new \App\Ext\Form\Form();
             $objForm->set('contributorNome', $dadosContributor['name']);
             $objForm->set('contributorLogin', $dadosContributor['login']);
             $objForm->set('contributorId', $dadosContributor['id']);
-            $objForm->set('contributorEmail', $dadosContributor['email']);
+            $objForm->set('contributorEmail', (isset($email) ? $email : $dadosContributor['email']));
             $objForm->set('contributorAvatar', $dadosContributor['avatar_url']);
             $objForm->set('contributorUrl', $dadosContributor['html_url']);
             $objForm->set('contributorLocation', $dadosContributor['location']);

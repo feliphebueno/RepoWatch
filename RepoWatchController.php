@@ -50,9 +50,13 @@ class RepoWatchController extends Controller
         
         $payload = \json_decode(\file_get_contents('php://input'), true);
 
+        $dadosRequest = \filter_input_array(\INPUT_SERVER);
+        
         try {
-            $this->class->processaWebHook($payload);
-        } catch (\Exception $e){
+
+            $this->processaEvento($dadosRequest['HTTP_X_GITHUB_EVENT'], $payload);
+            
+        } catch (\Exception $e){return $e->getMessage() . '<br />\n<pre>'. $e->getTraceAsString() .'</pre>';
             return \json_encode([
                 'sucesso' => false, 
                 'retorno' => [
@@ -63,5 +67,38 @@ class RepoWatchController extends Controller
         }
 
         return parent::jsonSucesso('OK');
+    }
+    
+    private function processaEvento($evento, $payload)
+    {
+        switch ($evento) {
+
+            case 'create':
+                
+                break;
+            case 'delete':
+                break;
+            case 'push':
+                
+                $repositorio    = $this->class->getDadosRepo($payload['repository']);
+                $branches       = $this->class->getBranches($repositorio['repositorioCod'], \substr($payload['repository']['branches_url'], 0, -9));
+                //Envia notificação.
+                break;
+            case 'commit_comment':
+                break;
+            case 'issues':
+                break;
+            case 'pull_request':
+                                
+                $dadosPullRequest = $this->class->getDadosPullRequest($payload);
+                //Envia notificação.
+                break;
+            case 'issue_comment':
+                break;
+            case 'pull_request_review_comment':
+                break;
+            default:
+                break;
+        }
     }
 }

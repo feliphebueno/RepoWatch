@@ -46,15 +46,15 @@ class RepoWatchSql
         $this->con = Conexao::conectar('siprevcl_prod');
     }
     
-    public function getContributorSql($id)
+    public function getContributorSql($userName)
     {
         $qb = $this->con->qb('siprevcl_prod');
         
         $qb->select('*')
            ->from('contributor')
-           ->where($qb->expr()->eq('contributorId', ':id'))
+           ->where($qb->expr()->eq('contributorLogin', ':contributorLogin'))
            ->setMaxResults(1)
-           ->setParameter('id', $id, \PDO::PARAM_STR);
+           ->setParameter('contributorLogin', $userName, \PDO::PARAM_STR);
 
         return $qb;
     }
@@ -68,6 +68,19 @@ class RepoWatchSql
            ->where($qb->expr()->eq('repositorioId', ':id'))
            ->setMaxResults(1)
            ->setParameter('id', $id, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+    
+    public function getPullRequestSql($id)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+        
+        $qb->select('*')
+           ->from('repositorio_pull')
+           ->where($qb->expr()->eq('repositorioPullId', ':repositorioPullId'))
+           ->setMaxResults(1)
+           ->setParameter('repositorioPullId', $id, \PDO::PARAM_STR);
 
         return $qb;
     }
