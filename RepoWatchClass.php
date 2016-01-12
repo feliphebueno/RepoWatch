@@ -258,7 +258,9 @@ class RepoWatchClass extends RepoWatchSql
             $merged = ($pullRequest['merged'] == 'true' ? 'M' : 'N');
             
             if($dadosPullRequest['repositoriopullstatus'] !== $merged){
-                $this->crudUtil->update('repositorio_pull', ['repositorioPullStatus'], $objForm, ['repositorioPullCod'], false, ['organogramaCod']);
+                $objForm = new \App\Ext\Form\Form();
+                $objForm->set('repositorioPullStatus', "M");
+                $this->crudUtil->update('repositorio_pull', ['repositorioPullStatus'], $objForm, ['repositorioPullCod' => $dadosPullRequest['repositoriopullcod']], [], ['organogramaCod']);
             }
 
         } else {
