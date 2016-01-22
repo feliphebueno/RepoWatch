@@ -59,24 +59,7 @@ class RepoWatchClass extends RepoWatchSql
         $filename = 'log/'. \date('d-m-Y_H-i-s') .'.log';
         return \file_put_contents($filename, $data);
     }
-    
-    public function processaWebHook($payload)
-    {
-        $this->crudUtil->startTransaction();
-        $dadosUser          = $this->getDadosUser($payload['comment']['user']);
-        $dadosRepo          = $this->getDadosRepo($payload['repository']);
-        $dadosBranches      = $this->getBranches($dadosRepo['repositorioCod'], $payload['repository']['branches_url']);
-        
-        print "Resultado da requisição: \n Dados User: \n";
-        print_r($dadosUser);
-        print "Dados Repo: \n";
-        print_r($dadosRepo);
-        print "Dados Branch: \n";
-        print_r($dadosBranches);
-        $this->crudUtil->stopTransaction();
-        exit;
-    }
-    
+       
     public function getBranches($repositorioCod, $branches_url) 
     {
         $dadosBranches = $this->getDadosAPI($branches_url);
@@ -378,8 +361,8 @@ class RepoWatchClass extends RepoWatchSql
         $client     = new \GuzzleHttp\Client(['verify' => false]);
         $response   = $client->get($url, [
             'auth' => [
-                'feliphebueno',
-                'e6a4ceda23d8a67be1f4daaed0260a70b6c0d6f7'
+                '<github_user>',
+                '<user_token>'
             ]
         ]);
 

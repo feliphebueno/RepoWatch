@@ -37,8 +37,6 @@ class RepoWatchController extends Controller
 {
 
     private $class;
-
-    private $gitHubSecret = 'acb05a459790bf08035fc8c0b403c814a8443f93';
     
     /** @var \Zion\Validacao\Valida Validação*/
     private $trata;
@@ -61,7 +59,7 @@ class RepoWatchController extends Controller
 
             $this->processaEvento($dadosRequest['HTTP_X_GITHUB_EVENT'], $payload);
             
-        } catch (\Exception $e){return $e->getMessage() . '<br />\n<pre>'. $e->getTraceAsString() .'</pre>';
+        } catch (\Exception $e){
             return \json_encode([
                 'sucesso' => false, 
                 'retorno' => [
@@ -112,7 +110,7 @@ class RepoWatchController extends Controller
 
                 $dadosPullRequest = $this->class->getDadosPullRequest($payload);
 
-                if($payload['action'] === 'opened') {
+                if($payload['action'] === 'opened' and isset($dadosPullRequest['id'])) {
                     $usuarios       = [1];
 
                     $pull           = $payload['pull_request'];
