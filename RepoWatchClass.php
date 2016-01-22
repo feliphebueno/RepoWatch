@@ -192,7 +192,7 @@ class RepoWatchClass extends RepoWatchSql
         
         $repositorio = $this->con->execLinha(parent::getRepositorioSql($id));
         
-        //User already exists.
+        //Repo already exists.
         if(\count($repositorio) > 0){
 
             $retorno['repositorioCod']  = $repositorio['repositoriocod'];
@@ -376,8 +376,68 @@ class RepoWatchClass extends RepoWatchSql
     public function getDadosAPI($url)
     {
         $client     = new \GuzzleHttp\Client(['verify' => false]);
-        $response   = $client->get($url);
+        $response   = $client->get($url, [
+            'auth' => [
+                'feliphebueno',
+                'e6a4ceda23d8a67be1f4daaed0260a70b6c0d6f7'
+            ]
+        ]);
 
         return \json_decode($response->getBody()->getContents(), true);
+    }
+    
+    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link)
+    {
+        $objForm = new \App\Ext\Form\Form();
+        $objForm->set('usuarioCod', 2);
+        $objForm->set('notificacaoUsuarioCod', $usuarioCod);
+        $objForm->set('notificacaoTitulo', $titulo);
+        $objForm->set('notificacaoDesc', $descricao);
+        $objForm->set('notificacaoWarnLevel', $warnLevel);
+        $objForm->set('notificacaoDataHora', \date('Y-m-d H:i:s'));
+        $objForm->set('notificacaoLink', $link);
+
+        $campos = [
+            'usuarioCod',
+            'notificacaoUsuarioCod',
+            'notificacaoTitulo',
+            'notificacaoDesc',
+            'notificacaoWarnLevel',
+            'notificacaoDataHora',
+            'notificacaoLink'
+        ];
+        
+        //t1
+        $crudUtil = new CrudUtil('siprevcl_bd');
+        $crudUtil->insert('_notificacao', $campos, $objForm, ['organogramaCod']);
+        
+        //s2
+        $crudUtilS2 = new CrudUtil('siprevcl_prod_s2');
+        $crudUtilS2->insert('_notificacao', $campos, $objForm, ['organogramaCod']);
+
+        return true;
+    }
+    
+    public function getStatsPull($commitsUrl)
+    {
+        $commits = $this->getDadosAPI($commitsUrl);
+        
+        $files  = 0;
+        $add    = 0;
+        $del    = 0;
+        
+        foreach ($commits as $commit) {
+            $dados = $this->getDadosAPI($commit['url']);
+            
+            $files  += \count($dados['files']);
+            $add    += $dados['stats']['additions'];
+            $del    += $dados['stats']['deletions'];
+        }
+        
+        return [
+            'files' => $files,
+            'add'   => $add,
+            'del'   => $del
+        ];
     }
 }
