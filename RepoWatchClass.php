@@ -59,24 +59,7 @@ class RepoWatchClass extends RepoWatchSql
         $filename = 'log/'. \date('d-m-Y_H-i-s') .'.log';
         return \file_put_contents($filename, $data);
     }
-    
-    public function processaWebHook($payload)
-    {
-        $this->crudUtil->startTransaction();
-        $dadosUser          = $this->getDadosUser($payload['comment']['user']);
-        $dadosRepo          = $this->getDadosRepo($payload['repository']);
-        $dadosBranches      = $this->getBranches($dadosRepo['repositorioCod'], $payload['repository']['branches_url']);
-        
-        print "Resultado da requisição: \n Dados User: \n";
-        print_r($dadosUser);
-        print "Dados Repo: \n";
-        print_r($dadosRepo);
-        print "Dados Branch: \n";
-        print_r($dadosBranches);
-        $this->crudUtil->stopTransaction();
-        exit;
-    }
-    
+       
     public function getBranches($repositorioCod, $branches_url) 
     {
         $dadosBranches = $this->getDadosAPI($branches_url);
@@ -192,7 +175,7 @@ class RepoWatchClass extends RepoWatchSql
         
         $repositorio = $this->con->execLinha(parent::getRepositorioSql($id));
         
-        //User already exists.
+        //Repo already exists.
         if(\count($repositorio) > 0){
 
             $retorno['repositorioCod']  = $repositorio['repositoriocod'];
@@ -258,7 +241,9 @@ class RepoWatchClass extends RepoWatchSql
             $merged = ($pullRequest['merged'] == 'true' ? 'M' : 'N');
             
             if($dadosPullRequest['repositoriopullstatus'] !== $merged){
-                $this->crudUtil->update('repositorio_pull', ['repositorioPullStatus'], $objForm, ['repositorioPullCod'], false, ['organogramaCod']);
+                $objForm = new \App\Ext\Form\Form();
+                $objForm->set('repositorioPullStatus', "M");
+                $this->crudUtil->update('repositorio_pull', ['repositorioPullStatus'], $objForm, ['repositorioPullCod' => $dadosPullRequest['repositoriopullcod']], [], ['organogramaCod']);
             }
 
         } else {
@@ -374,8 +359,68 @@ class RepoWatchClass extends RepoWatchSql
     public function getDadosAPI($url)
     {
         $client     = new \GuzzleHttp\Client(['verify' => false]);
-        $response   = $client->get($url);
+        $response   = $client->get($url, [
+            'auth' => [
+                '<github_user>',
+                '<user_token>'
+            ]
+        ]);
 
         return \json_decode($response->getBody()->getContents(), true);
+    }
+    
+    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link)
+    {
+        $objForm = new \App\Ext\Form\Form();
+        $objForm->set('usuarioCod', 2);
+        $objForm->set('notificacaoUsuarioCod', $usuarioCod);
+        $objForm->set('notificacaoTitulo', $titulo);
+        $objForm->set('notificacaoDesc', $descricao);
+        $objForm->set('notificacaoWarnLevel', $warnLevel);
+        $objForm->set('notificacaoDataHora', \date('Y-m-d H:i:s'));
+        $objForm->set('notificacaoLink', $link);
+
+        $campos = [
+            'usuarioCod',
+            'notificacaoUsuarioCod',
+            'notificacaoTitulo',
+            'notificacaoDesc',
+            'notificacaoWarnLevel',
+            'notificacaoDataHora',
+            'notificacaoLink'
+        ];
+        
+        //t1
+        $crudUtil = new CrudUtil('siprevcl_bd');
+        $crudUtil->insert('_notificacao', $campos, $objForm, ['organogramaCod']);
+        
+        //s2
+        $crudUtilS2 = new CrudUtil('siprevcl_prod_s2');
+        $crudUtilS2->insert('_notificacao', $campos, $objForm, ['organogramaCod']);
+
+        return true;
+    }
+    
+    public function getStatsPull($commitsUrl)
+    {
+        $commits = $this->getDadosAPI($commitsUrl);
+        
+        $files  = 0;
+        $add    = 0;
+        $del    = 0;
+        
+        foreach ($commits as $commit) {
+            $dados = $this->getDadosAPI($commit['url']);
+            
+            $files  += \count($dados['files']);
+            $add    += $dados['stats']['additions'];
+            $del    += $dados['stats']['deletions'];
+        }
+        
+        return [
+            'files' => $files,
+            'add'   => $add,
+            'del'   => $del
+        ];
     }
 }

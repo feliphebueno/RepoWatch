@@ -31,8 +31,6 @@
 namespace RepoWatch;
 
 use Zion\Banco\Conexao;
-use Pixel\Filtro\Filtrar;
-use App\Ext\Crud\CrudUtil;
 
 class RepoWatchSql
 {

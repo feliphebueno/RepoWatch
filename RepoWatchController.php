@@ -31,17 +31,20 @@
 namespace RepoWatch;
 
 use App\Ext\Core\Controller;
+use Zion\Validacao\Valida;
 
 class RepoWatchController extends Controller
 {
 
     private $class;
-
-    private $gitHubSecret = 'acb05a459790bf08035fc8c0b403c814a8443f93';
+    
+    /** @var \Zion\Validacao\Valida Validação*/
+    private $trata;
     
     public function __construct()
     {
         $this->class    = new RepoWatchClass();
+        $this->trata    = Valida::instancia();
     } 
     
     protected function iniciar()
@@ -56,7 +59,7 @@ class RepoWatchController extends Controller
 
             $this->processaEvento($dadosRequest['HTTP_X_GITHUB_EVENT'], $payload);
             
-        } catch (\Exception $e){return $e->getMessage() . '<br />\n<pre>'. $e->getTraceAsString() .'</pre>';
+        } catch (\Exception $e){
             return \json_encode([
                 'sucesso' => false, 
                 'retorno' => [
@@ -79,19 +82,59 @@ class RepoWatchController extends Controller
             case 'delete':
                 break;
             case 'push':
-                
                 $repositorio    = $this->class->getDadosRepo($payload['repository']);
                 $branches       = $this->class->getBranches($repositorio['repositorioCod'], \substr($payload['repository']['branches_url'], 0, -9));
-                //Envia notificação.
+                $usuarios       = [1];
+                
+                $head           = $payload['head_commit'];
+                
+                $data           = $this->trata->data()->converteData(\substr($head['timestamp'], 0, 10));
+                $hora           = \substr($head['timestamp'], 11, 5);
+                
+                $titulo     = 'Novo Push no repositório '. $repositorio['repositorioNome'];
+                $descricao  = 'Último commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>
+                               Arquivos adicionados: <strong>'. \count($head['added']) .'</strong>. Removidos: <strong>'. \count($head['removed']) .'</strong>. Alterados: <strong>'. \count($head['modified']) .'</strong>';
+                $warnLevel  =  'warning';
+                $link       = $head['url'];
+                
+                foreach($usuarios as $usuarioCod){
+                    $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link);
+                }
+
                 break;
             case 'commit_comment':
                 break;
             case 'issues':
                 break;
             case 'pull_request':
-                                
+
                 $dadosPullRequest = $this->class->getDadosPullRequest($payload);
-                //Envia notificação.
+
+                if($payload['action'] === 'opened' and isset($dadosPullRequest['id'])) {
+                    $usuarios       = [1];
+
+                    $pull           = $payload['pull_request'];
+
+                    $head           = $pull['head'];
+
+                    $data           = $this->trata->data()->converteData(\substr($pull['created_at'], 0, 10));
+                    $hora           = \substr($pull['created_at'], 11, 5);
+
+                    $user           = $this->class->getDadosAPI($payload['sender']['url']);
+
+                    $stats          = $this->class->getStatsPull($pull['commits_url']);
+
+                    $titulo     = 'Novo Pull Request no repositório '. $payload['repository']['name'];
+                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>
+                                   Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. Adições: <strong>'. $stats['add'] .'</strong>. Remoções: <strong>'. $stats['del'] .'</strong>';
+                    $warnLevel  =  'danger';
+                    $link       = $pull['html_url'];
+
+                    foreach($usuarios as $usuarioCod){
+                        $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link);
+                    }
+                }
+
                 break;
             case 'issue_comment':
                 break;
