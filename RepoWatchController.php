@@ -92,13 +92,14 @@ class RepoWatchController extends Controller
                 $hora           = \substr($head['timestamp'], 11, 5);
                 
                 $titulo     = 'Novo Push no repositório '. $repositorio['repositorioNome'];
-                $descricao  = 'Último commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>
+                $descricao  = 'Último commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
                                Arquivos adicionados: <strong>'. \count($head['added']) .'</strong>. Removidos: <strong>'. \count($head['removed']) .'</strong>. Alterados: <strong>'. \count($head['modified']) .'</strong>';
                 $warnLevel  =  'warning';
+                $icon       =  'fa-github';
                 $link       = $head['url'];
                 
                 foreach($usuarios as $usuarioCod){
-                    $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link);
+                    $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
                 }
 
                 break;
@@ -125,13 +126,14 @@ class RepoWatchController extends Controller
                     $stats          = $this->class->getStatsPull($pull['commits_url']);
 
                     $titulo     = 'Novo Pull Request no repositório '. $payload['repository']['name'];
-                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>
+                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
                                    Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. Adições: <strong>'. $stats['add'] .'</strong>. Remoções: <strong>'. $stats['del'] .'</strong>';
                     $warnLevel  =  'danger';
+                    $icon       =  'fa-github';
                     $link       = $pull['html_url'];
 
                     foreach($usuarios as $usuarioCod){
-                        $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link);
+                        $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
                     }
                 }
 

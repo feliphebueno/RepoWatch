@@ -369,7 +369,7 @@ class RepoWatchClass extends RepoWatchSql
         return \json_decode($response->getBody()->getContents(), true);
     }
     
-    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link)
+    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link)
     {
         $objForm = new \App\Ext\Form\Form();
         $objForm->set('usuarioCod', 2);
@@ -377,6 +377,7 @@ class RepoWatchClass extends RepoWatchSql
         $objForm->set('notificacaoTitulo', $titulo);
         $objForm->set('notificacaoDesc', $descricao);
         $objForm->set('notificacaoWarnLevel', $warnLevel);
+        $objForm->set('notificacaoIcon', $icon);
         $objForm->set('notificacaoDataHora', \date('Y-m-d H:i:s'));
         $objForm->set('notificacaoLink', $link);
 
@@ -386,6 +387,7 @@ class RepoWatchClass extends RepoWatchSql
             'notificacaoTitulo',
             'notificacaoDesc',
             'notificacaoWarnLevel',
+            'notificacaoIcon',
             'notificacaoDataHora',
             'notificacaoLink'
         ];
