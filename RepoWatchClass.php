@@ -42,15 +42,16 @@ class RepoWatchClass extends RepoWatchSql
     private $tabela;
     private $precedencia;
     private $crudUtil;
-    private $banco;
+    private $confs;
     protected $con;
     
     public function __construct($cod = '')
     {
-        $this->cod = $cod;
-        $this->con = Conexao::conectar();
-        $this->crudUtil = new CrudUtil('siprevcl_prod');
-
+        $this->cod          = $cod;
+        $this->con          = Conexao::conectar();
+        $this->crudUtil     = new CrudUtil('siprevcl_prod');
+        $this->confs        = \App\Config::$SIS_CFG;
+        
         parent::__construct();
     }
     
@@ -424,8 +425,8 @@ class RepoWatchClass extends RepoWatchSql
         $client     = new \GuzzleHttp\Client(['verify' => false]);
         $response   = $client->get($url, [
             'auth' => [
-                '<github_user>',
-                '<user_token>'
+                $this->confs['apiKeys']['github']['user'],
+                $this->confs['apiKeys']['github']['passToken']
             ]
         ]);
 
