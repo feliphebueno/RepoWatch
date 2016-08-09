@@ -148,7 +148,9 @@ class RepoWatchController extends Controller
 
                 break;
             case 'issue_comment':
-                
+                break;
+            case 'issues':
+
                 $dadosIssue = $this->class->getDadosIssue($payload);
 
                 if($payload['action'] === 'opened' and isset($dadosIssue['id'])) {
