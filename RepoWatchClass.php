@@ -293,6 +293,69 @@ class RepoWatchClass extends RepoWatchSql
         return $retorno;
     }
     
+    public function getDadosIssue($dados)
+    {
+        $issue = $dados['issue'];
+        
+        $id         = $issue['id'];
+        $name       = $issue['title'];
+
+        $retorno = [
+            'titulo'       => $name,
+            'id'           => $id
+        ];
+        
+        $dadosIssue = $this->con->execLinha(parent::getIssueSql($id));
+        
+        //User already exists.
+        if(\count($dadosIssue) > 0){
+
+            $retorno['repositorioPullCod']  = $dadosIssue['repositorioissuecod'];
+            $closed = ($issue['state'] == 'open' ? 'O' : 'C');
+            
+            if($dadosIssue['state'] !== $closed){
+                $objForm = new \App\Ext\Form\Form();
+                $objForm->set('repositorioIssueStatus', "C");
+                $this->crudUtil->update('repositorio_issue', ['repositorioIssueStatus'], $objForm, ['repositorioIssueCod' => $dadosIssue['repositorioissuecod']], [], ['organogramaCod']);
+            }
+
+        } else {
+
+            $dadosUser         = $this->getDadosUser($issue['user']);
+            $dadosRepo         = $this->getDadosRepo($dados['repository']);
+
+            $objForm = new \App\Ext\Form\Form();
+            $objForm->set('repositorioCod', $dadosRepo['repositorioCod']);
+            $objForm->set('contributorCod', $dadosUser['contributorCod']);
+            $objForm->set('repositorioIssueId', $issue['id']);
+            $objForm->set('repositorioIssueTitulo', $issue['title']);
+            $objForm->set('repositorioIssueMensagem', $issue['body']);
+            $objForm->set('repositorioIssueUrl', $issue['url']);
+            $objForm->set('repositorioIssueComentarios', $issue['comments']);
+            $objForm->set('repositorioIssueData', $issue['created_at']);
+            $objForm->set('repositorioIssueDataClosed', $issue['merged_at']);
+            $objForm->set('repositorioIssueStatus', ($issue['state'] == 'open' ? 'O' : 'C'));
+
+            $campos = [
+                'repositorioCod',
+                'contributorCod',
+                'repositorioIssueId',
+                'repositorioIssueTitulo',
+                'repositorioIssueMensagem',
+                'repositorioIssueUrl',
+                'repositorioIssueComentarios',
+                'repositorioIssueData',
+                'repositorioIssueDataClosed',
+                'repositorioIssueStatus',
+            ];
+
+            $idRegistro = $this->crudUtil->insert('repositorio_issue', $campos, $objForm, ['organogramaCod']);
+            $retorno['repositorioIssueCod']  = $idRegistro;
+        }
+
+        return $retorno;
+    }
+    
     public function getDadosUser($dados)
     {
         if(isset($dados['login'])){

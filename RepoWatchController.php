@@ -32,19 +32,28 @@ namespace RepoWatch;
 
 use App\Ext\Core\Controller;
 use Zion\Validacao\Valida;
+use RepoWatch\Telegram\Telegram;
 
 class RepoWatchController extends Controller
 {
 
     private $class;
     
-    /** @var \Zion\Validacao\Valida Validação*/
+    /** @var \Zion\Validacao\Valida Validação. */
     private $trata;
     
+    /** @var Telegram Objeto da API de integração com o Telegram. */
+    private $telegram;
+    
+    /** @var string Id da conversa com o contato ou grupo que irá receber as notificações. */
+    private $chatId = '159867452';
+
+
     public function __construct()
     {
         $this->class    = new RepoWatchClass();
         $this->trata    = Valida::instancia();
+        $this->telegram = new Telegram('bot219721426:AAGO9F8YIh0grhp41Ww_tCMoBnG36TUeQys');
     } 
     
     protected function iniciar()
@@ -139,6 +148,35 @@ class RepoWatchController extends Controller
 
                 break;
             case 'issue_comment':
+                
+                $dadosIssue = $this->class->getDadosIssue($payload);
+
+                if($payload['action'] === 'opened' and isset($dadosIssue['id'])) {
+
+                    $usuarios       = [1];
+
+                    $issue           = $payload['issue'];
+
+                    $data           = $this->trata->data()->converteData(\substr($issue['created_at'], 0, 10));
+                    $hora           = \substr($issue['created_at'], 11, 5);
+
+                    $user           = $this->class->getDadosAPI($issue['user']['url']);
+
+                    $stats          = $this->class->getStatsPull($pull['commits_url']);
+
+                    $titulo     = 'Nova Issue aberta no repositório '. $payload['repository']['name'];
+                    $descricao  = 'Aberta por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />';
+                    $warnLevel  =  'info';
+                    $icon       =  'fa-github';
+                    $link       = $issue['html_url'];
+
+                    $this->telegram->sendMessage($titulo ." <br />\n ". $descricao, $this->chatId);
+
+                    foreach($usuarios as $usuarioCod){
+                        $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
+                    }
+                }
+
                 break;
             case 'pull_request_review_comment':
                 break;

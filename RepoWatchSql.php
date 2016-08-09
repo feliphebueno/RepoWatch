@@ -83,6 +83,19 @@ class RepoWatchSql
         return $qb;
     }
 
+    public function getIssueSql($id)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+        
+        $qb->select('*')
+           ->from('repositorio_issue')
+           ->where($qb->expr()->eq('repositorioIssueId', ':repositorioIssueId'))
+           ->setMaxResults(1)
+           ->setParameter('repositorioIssueId', $id, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+
     public function getBranchSql($nome)
     {
         $qb = $this->con->qb('siprevcl_prod');
