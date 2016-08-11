@@ -314,7 +314,7 @@ class RepoWatchClass extends RepoWatchSql
             $retorno['repositorioPullCod']  = $dadosIssue['repositorioissuecod'];
             $closed = ($issue['state'] == 'open' ? 'O' : 'C');
             
-            if($dadosIssue['state'] !== $closed){
+            if($dadosIssue['repositorioissuestatus'] !== $closed){
                 $objForm = new \App\Ext\Form\Form();
                 $objForm->set('repositorioIssueStatus', "C");
                 $this->crudUtil->update('repositorio_issue', ['repositorioIssueStatus'], $objForm, ['repositorioIssueCod' => $dadosIssue['repositorioissuecod']], [], ['organogramaCod']);
@@ -334,7 +334,7 @@ class RepoWatchClass extends RepoWatchSql
             $objForm->set('repositorioIssueUrl', $issue['url']);
             $objForm->set('repositorioIssueComentarios', $issue['comments']);
             $objForm->set('repositorioIssueData', $issue['created_at']);
-            $objForm->set('repositorioIssueDataClosed', $issue['merged_at']);
+            $objForm->set('repositorioIssueDataClosed', $issue['closed_at']);
             $objForm->set('repositorioIssueStatus', ($issue['state'] == 'open' ? 'O' : 'C'));
 
             $campos = [

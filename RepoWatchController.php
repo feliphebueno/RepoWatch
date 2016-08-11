@@ -39,13 +39,13 @@ class RepoWatchController extends Controller
 
     private $class;
     
-    /** @var \Zion\Validacao\Valida Validação. */
+    /** @var \Zion\Validacao\Valida Validacao. */
     private $trata;
     
-    /** @var Telegram Objeto da API de integração com o Telegram. */
+    /** @var Telegram Objeto da API de integracao com o Telegram. */
     private $telegram;
     
-    /** @var string Id da conversa com o contato ou grupo que irá receber as notificações. */
+    /** @var string Id da conversa com o contato ou grupo que ira receber as notificacoes. */
     private $chatId = '159867452';
 
 
@@ -100,8 +100,8 @@ class RepoWatchController extends Controller
                 $data           = $this->trata->data()->converteData(\substr($head['timestamp'], 0, 10));
                 $hora           = \substr($head['timestamp'], 11, 5);
                 
-                $titulo     = 'Novo Push no repositório '. $repositorio['repositorioNome'];
-                $descricao  = 'Último commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
+                $titulo     = 'Novo Push no repositÃ³rio '. $repositorio['repositorioNome'];
+                $descricao  = 'Ãšltimo commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, Ã s <strong>'. $hora .'</strong>.<br />
                                Arquivos adicionados: <strong>'. \count($head['added']) .'</strong>. Removidos: <strong>'. \count($head['removed']) .'</strong>. Alterados: <strong>'. \count($head['modified']) .'</strong>';
                 $warnLevel  =  'warning';
                 $icon       =  'fa-github';
@@ -113,8 +113,6 @@ class RepoWatchController extends Controller
 
                 break;
             case 'commit_comment':
-                break;
-            case 'issues':
                 break;
             case 'pull_request':
 
@@ -134,9 +132,9 @@ class RepoWatchController extends Controller
 
                     $stats          = $this->class->getStatsPull($pull['commits_url']);
 
-                    $titulo     = 'Novo Pull Request no repositório '. $payload['repository']['name'];
-                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
-                                   Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. Adições: <strong>'. $stats['add'] .'</strong>. Remoções: <strong>'. $stats['del'] .'</strong>';
+                    $titulo     = 'Novo Pull Request no repositÃ³rio '. $payload['repository']['name'];
+                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, Ã s <strong>'. $hora .'</strong>.<br />
+                                   Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. AdiÃ§Ãµes: <strong>'. $stats['add'] .'</strong>. RemoÃ§Ãµes: <strong>'. $stats['del'] .'</strong>';
                     $warnLevel  =  'danger';
                     $icon       =  'fa-github';
                     $link       = $pull['html_url'];
@@ -152,31 +150,61 @@ class RepoWatchController extends Controller
             case 'issues':
 
                 $dadosIssue = $this->class->getDadosIssue($payload);
+                
+                $usuarios       = [1];
+
+                $issue           = $payload['issue'];
+
+                $data           = $this->trata->data()->converteData(\substr($issue['created_at'], 0, 10));
+                $hora           = \substr($issue['created_at'], 11, 5);
+
+                $user           = $this->class->getDadosAPI($issue['user']['url']);
 
                 if($payload['action'] === 'opened' and isset($dadosIssue['id'])) {
 
-                    $usuarios       = [1];
+                    $titulo     = 'Nova Issue aberta no repositorio <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n\n";
+                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a> acaba de ser aberta por <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] .'</a>,'
+                                  .' em <strong>'. $data .'</strong>, as <strong>'. $hora .'</strong>.';
 
-                    $issue           = $payload['issue'];
-
-                    $data           = $this->trata->data()->converteData(\substr($issue['created_at'], 0, 10));
-                    $hora           = \substr($issue['created_at'], 11, 5);
-
-                    $user           = $this->class->getDadosAPI($issue['user']['url']);
-
-                    $stats          = $this->class->getStatsPull($pull['commits_url']);
-
-                    $titulo     = 'Nova Issue aberta no repositório '. $payload['repository']['name'];
-                    $descricao  = 'Aberta por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />';
-                    $warnLevel  =  'info';
-                    $icon       =  'fa-github';
-                    $link       = $issue['html_url'];
-
-                    $this->telegram->sendMessage($titulo ." <br />\n ". $descricao, $this->chatId);
-
-                    foreach($usuarios as $usuarioCod){
-                        $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
+                    if(\count($issue['assignees']) > 0){
+                        $descricao .= "\n\n". $this->getUsuariosDesignados($issue);
                     }
+
+                } elseif($payload['action'] === 'closed' and isset($dadosIssue['id'])){
+
+                    $titulo     = "Parabéns! Mais uma demanda implementada, testada e homologada.\n";
+                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>"
+                                .' acaba de ser encerrada pelo usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a>.";
+
+                } elseif($payload['action'] === 'assigned' and isset($dadosIssue['id'])){
+
+                    $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
+                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>";
+                    if(\count($issue['assignees']) > 0){
+                        $descricao = "\n". $this->getUsuariosDesignados($issue);
+                    }
+                } elseif($payload['action'] === 'labeled' and isset($dadosIssue['id'])){
+                    
+                    $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
+                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n";
+                    $descricao  = 'O usuário usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> alterou os labels desta issue para:\n";
+                    $descricao  .= $this->getLabels($issue['labels'], $payload['repository']['html_url']);
+                    
+                }
+
+                $descricao .= "\n\n\n";
+
+                $warnLevel  =  'info';
+                $icon       =  'fa-github';
+                $link       = $issue['html_url'];
+                $this->telegram->sendMessage($titulo . $descricao, $this->chatId);
+                
+                if($payload['action'] === 'closed'){
+                    $this->telegram->sendSticker('BQADAQADQAADyIsGAAGMQCvHaYLU_AI', $this->chatId);
+                }
+
+                foreach($usuarios as $usuarioCod){
+                    $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
                 }
 
                 break;
@@ -185,5 +213,35 @@ class RepoWatchController extends Controller
             default:
                 break;
         }
+    }
+    
+    public function getUsuariosDesignados($issue)
+    {
+        $assignees      = $issue['assignees'];
+        $user           = $issue['user'];
+        $selfAssigned   = NULL;
+        $designados     = NULL;
+
+        foreach($assignees as $userAssigned){
+            if($userAssigned['id'] == $user['id']){
+                $selfAssigned = 'O usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a> se auto-nomeu para esta tarefa.\n";
+            } else {
+                $designados .= 'Esta tarefa foi atribuída ao  usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a>.\n";
+            }
+        }
+        
+        return $selfAssigned . $designados;
+    }
+
+    public function getLabels($labels, $repoUrl)
+    {
+        $definicao  = NULL;
+        $labelsUrl  = $repoUrl .'/labels/';
+
+        foreach($labels as $label){
+            $definicao .= '<a href="'. $labelsUrl . $label['name'] .'" target="_blank">'. \strtoupper($label['name']) ."</a>\n";
+        }
+        
+        return $definicao;
     }
 }
