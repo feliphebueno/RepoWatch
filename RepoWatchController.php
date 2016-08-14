@@ -86,7 +86,6 @@ class RepoWatchController extends Controller
         switch ($evento) {
 
             case 'create':
-                
                 break;
             case 'delete':
                 break;
@@ -100,8 +99,8 @@ class RepoWatchController extends Controller
                 $data           = $this->trata->data()->converteData(\substr($head['timestamp'], 0, 10));
                 $hora           = \substr($head['timestamp'], 11, 5);
                 
-                $titulo     = 'Novo Push no repositÃ³rio '. $repositorio['repositorioNome'];
-                $descricao  = 'Ãšltimo commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, Ã s <strong>'. $hora .'</strong>.<br />
+                $titulo     = 'Novo Push no repositório '. $repositorio['repositorioNome'];
+                $descricao  = 'Último commit no branch '. $payload['ref']  .',<br /> por <strong>'. $head['author']['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
                                Arquivos adicionados: <strong>'. \count($head['added']) .'</strong>. Removidos: <strong>'. \count($head['removed']) .'</strong>. Alterados: <strong>'. \count($head['modified']) .'</strong>';
                 $warnLevel  =  'warning';
                 $icon       =  'fa-github';
@@ -132,9 +131,9 @@ class RepoWatchController extends Controller
 
                     $stats          = $this->class->getStatsPull($pull['commits_url']);
 
-                    $titulo     = 'Novo Pull Request no repositÃ³rio '. $payload['repository']['name'];
-                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, Ã s <strong>'. $hora .'</strong>.<br />
-                                   Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. AdiÃ§Ãµes: <strong>'. $stats['add'] .'</strong>. RemoÃ§Ãµes: <strong>'. $stats['del'] .'</strong>';
+                    $titulo     = 'Novo Pull Request no repositório '. $payload['repository']['name'];
+                    $descricao  = 'Aberto por <strong>'. $user['name'] .'</strong>, em <strong>'. $data .'</strong>, às <strong>'. $hora .'</strong>.<br />
+                                   Arquivos Alterados: <strong>'. $stats['files'] .'</strong>. Adições: <strong>'. $stats['add'] .'</strong>. Remoções: <strong>'. $stats['del'] .'</strong>';
                     $warnLevel  =  'danger';
                     $icon       =  'fa-github';
                     $link       = $pull['html_url'];
@@ -146,6 +145,40 @@ class RepoWatchController extends Controller
 
                 break;
             case 'issue_comment':
+
+                $dadosIssue = $this->class->getDadosIssue($payload);
+                $issue          = $payload['issue'];
+
+                if($payload['action'] === 'created' and $issue['state'] == 'open' and isset($dadosIssue['id'])) {
+                    $usuarios       = [1];
+
+                    $issue          = $payload['issue'];
+                    $comment        = $payload['comment'];
+                    
+                    $mencionados    = $this->getUsuariosMencionados($payload['comment']);
+                    
+                    $tipo           = (\preg_match('/[pull]{4}/', $issue['html_url']) === true ? "no pull request" : "na issue");
+
+                    $data           = $this->trata->data()->converteData(\substr($issue['created_at'], 0, 10));
+                    $hora           = \substr($issue['created_at'], 11, 5);
+
+                    $user           = $this->class->getDadosAPI($comment['user']['url']);
+
+                    $titulo     = 'Nova interação '. $tipo .' de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
+                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:\n\n";
+                    
+                    if($mencionados['count'] > 0){
+                        $descricao = 'O usuário usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> adicionou um novo comentário mencionando o(s) usuário(s):\n";
+                        $descricao .= $mencionados['texto'];
+                    } else {
+                        $descricao = 'O usuário usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> adicionou um novo comentário.\n";
+                    }
+                    
+                    $descricao .= "----\n";
+                    
+                    $this->telegram->sendMessage($titulo . $descricao, $this->chatId);
+                }
+                
                 break;
             case 'issues':
 
@@ -158,41 +191,59 @@ class RepoWatchController extends Controller
                 $data           = $this->trata->data()->converteData(\substr($issue['created_at'], 0, 10));
                 $hora           = \substr($issue['created_at'], 11, 5);
 
-                $user           = $this->class->getDadosAPI($issue['user']['url']);
+                $user           = $this->class->getDadosAPI($payload['sender']['url']);
+                
+                $repositorioIssueCod = $dadosIssue['repositorioIssueCod'];
 
                 if($payload['action'] === 'opened' and isset($dadosIssue['id'])) {
+                    
+                    $assignees = $this->getUsuariosDesignados($payload, $repositorioIssueCod);
 
-                    $titulo     = 'Nova Issue aberta no repositorio <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n\n";
+                    $titulo     = 'Nova Issue aberta no repositório <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n\n";
                     $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a> acaba de ser aberta por <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] .'</a>,'
                                   .' em <strong>'. $data .'</strong>, as <strong>'. $hora .'</strong>.';
 
-                    if(\count($issue['assignees']) > 0){
-                        $descricao .= "\n\n". $this->getUsuariosDesignados($issue);
+                    if(\count($assignees['count']) > 0){
+                        $this->class->registraAssigned($issue['assignees'], $repositorioIssueCod);
+                        $descricao .= "\n\n". $assignees['texto'];
                     }
 
                 } elseif($payload['action'] === 'closed' and isset($dadosIssue['id'])){
 
                     $titulo     = "Parabéns! Mais uma demanda implementada, testada e homologada.\n";
-                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>"
-                                .' acaba de ser encerrada pelo usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a>.";
+                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositório <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>"
+                                .' acaba de ser fechada pelo usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a>.\n";
 
-                } elseif($payload['action'] === 'assigned' and isset($dadosIssue['id'])){
+                } elseif($payload['action'] === 'assigned' and $issue['state'] == 'open' and isset($dadosIssue['id'])){
 
-                    $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
-                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>";
-                    if(\count($issue['assignees']) > 0){
-                        $descricao = "\n". $this->getUsuariosDesignados($issue);
+                    $assigneds = $this->getUsuariosDesignados($payload, $repositorioIssueCod);
+                    $this->class->registraAssigned($issue['assignees'], $repositorioIssueCod);
+                    if($assigneds['count'] > 0){
+                        $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
+                                    . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:";
+                        $descricao = "\n\n". $assigneds['texto'];
+                    } else {
+                        return;
                     }
-                } elseif($payload['action'] === 'labeled' and isset($dadosIssue['id'])){
+                } elseif($payload['action'] === 'unassigned' and $issue['state'] == 'open' and isset($dadosIssue['id'])){
+                    //Apenas remove vínculo de usuarios com a issue.
+                    return $this->class->registraAssigned($issue['assignees'], $repositorioIssueCod);
+
+                } elseif($payload['action'] === 'labeled' and $issue['state'] = 'open' and isset($dadosIssue['id'])){
                     
-                    $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
-                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n";
-                    $descricao  = 'O usuário usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> alterou os labels desta issue para:\n";
-                    $descricao  .= $this->getLabels($issue['labels'], $payload['repository']['html_url']);
-                    
+                    $labels = $this->getLabels($issue['labels'], $payload['repository']['html_url']);
+                    if(\in_array('trabalhando nisso', $labels) === true){
+                        $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
+                                    . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:\n";
+                        $descricao  = 'O usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> está trabalhando nesta tarefa.\n";
+                    } else {
+                        return;
+                    }
+                } else {
+                    return;
                 }
 
-                $descricao .= "\n\n\n";
+                $descricao .= "----\n";
 
                 $warnLevel  =  'info';
                 $icon       =  'fa-github';
@@ -200,7 +251,7 @@ class RepoWatchController extends Controller
                 $this->telegram->sendMessage($titulo . $descricao, $this->chatId);
                 
                 if($payload['action'] === 'closed'){
-                    $this->telegram->sendSticker('BQADAQADQAADyIsGAAGMQCvHaYLU_AI', $this->chatId);
+                    $this->telegram->sendSticker('./Telegram/stickers/fist.webp', $this->chatId);
                 }
 
                 foreach($usuarios as $usuarioCod){
@@ -215,33 +266,62 @@ class RepoWatchController extends Controller
         }
     }
     
-    public function getUsuariosDesignados($issue)
+    public function getUsuariosDesignados($payload, $repositorioIssueCod)
     {
+        $issue          = $payload['issue'];
         $assignees      = $issue['assignees'];
         $user           = $issue['user'];
+        $sender         = $payload['sender'];
         $selfAssigned   = NULL;
         $designados     = NULL;
+        $count          = 0;
 
         foreach($assignees as $userAssigned){
-            if($userAssigned['id'] == $user['id']){
-                $selfAssigned = 'O usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a> se auto-nomeu para esta tarefa.\n";
-            } else {
-                $designados .= 'Esta tarefa foi atribuída ao  usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a>.\n";
+            
+            if($this->class->verificaAssigned($userAssigned, $repositorioIssueCod) === false){
+                if($userAssigned['id'] == $sender['id']){
+                    $selfAssigned = 'O usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a> se auto-nomeu para esta tarefa.\n";
+                } else {
+                    $designados .= 'Esta tarefa foi atribuída ao  usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a>.\n";
+                }
+                $count++;
             }
         }
         
-        return $selfAssigned . $designados;
+        return [
+            'texto' => $selfAssigned . $designados,
+            'count' => $count
+        ];
     }
 
     public function getLabels($labels, $repoUrl)
     {
-        $definicao  = NULL;
+        $definicao  = [];
         $labelsUrl  = $repoUrl .'/labels/';
 
         foreach($labels as $label){
-            $definicao .= '<a href="'. $labelsUrl . $label['name'] .'" target="_blank">'. \strtoupper($label['name']) ."</a>\n";
+            $definicao['text'] = '<a href="'. $labelsUrl . $label['name'] .'" target="_blank">'. \strtoupper($label['name']) ."</a>\n";
+            $definicao['name'] = $label['name'];
         }
-        
+
         return $definicao;
+    }
+    
+    public function getUsuariosMencionados($comment)
+    {
+        $users = [];
+        \preg_match_all('/\@[a-z]{2,}/', $comment['body'], $users);
+        $count = 0;
+
+        if(\count($users[0]) > 0){
+            foreach($users[0] as $user) {
+                $dadosContributor = $this->class->getDadosContributor(\substr($user, 1));
+                $users['texto'] = '<a href="'. $dadosContributor['contributorurl'] .'" target="_blank">@'. $dadosContributor['contributorlogin'] ."</a>\n";
+                $count++;
+            }
+        }
+
+        $users['count'] = $count;
+        return $users;
     }
 }

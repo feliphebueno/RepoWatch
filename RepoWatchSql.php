@@ -122,4 +122,18 @@ class RepoWatchSql
         return $qb;
     }
     
+    public function verificaAssignedSql($contributorCod, $repositorioIssueCod)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+
+        $qb->select('contributorCod')
+           ->from('repositorio_issue_assigned')
+           ->where($qb->expr()->eq('contributorCod', ':contributorCod'))
+           ->andWhere($qb->expr()->eq('repositorioIssueCod', ':repositorioIssueCod'))
+           ->setMaxResults(1)
+           ->setParameter('repositorioIssueCod', $repositorioIssueCod, \PDO::PARAM_INT)
+           ->setParameter('contributorCod', $contributorCod, \PDO::PARAM_INT);
+
+        return $qb;
+    }
 }

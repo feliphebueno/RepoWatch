@@ -311,7 +311,7 @@ class RepoWatchClass extends RepoWatchSql
         //User already exists.
         if(\count($dadosIssue) > 0){
 
-            $retorno['repositorioPullCod']  = $dadosIssue['repositorioissuecod'];
+            $retorno['repositorioIssueCod']  = $dadosIssue['repositorioissuecod'];
             $closed = ($issue['state'] == 'open' ? 'O' : 'C');
             
             if($dadosIssue['repositorioissuestatus'] !== $closed){
@@ -489,4 +489,31 @@ class RepoWatchClass extends RepoWatchSql
             'del'   => $del
         ];
     }
+    
+    public function registraAssigned($assignees, $repositorioIssueCod)
+    {
+        $objForm = new \App\Ext\Form\Form();
+        $objForm->set('repositorioIssueCod', $repositorioIssueCod);
+        $this->crudUtil->delete('repositorio_issue_assigned', ['repositorioIssueCod' => $repositorioIssueCod]);
+        $insert = 0;
+        foreach($assignees as $userAssigned){
+            $objForm->set('contributorCod', $this->getDadosUser($userAssigned)['contributorCod']);
+            $this->crudUtil->insert('repositorio_issue_assigned', ['repositorioIssueCod', 'contributorCod'], $objForm, ['organogramaCod']);
+            $insert++;
+        }
+        
+        return $insert;
+    }
+    
+    public function verificaAssigned($userAssigned, $repositorioIssueCod) 
+    {
+        $contributorCod = $this->getDadosUser($userAssigned)['contributorCod'];
+        return isset($this->con->execLinha(parent::verificaAssignedSql($contributorCod, $repositorioIssueCod))['contributorcod']);
+    }
+    
+    public function getDadosContributor($login)
+    {
+        return $this->con->execLinha(parent::getContributorSql($login));
+    }
+    
 }
