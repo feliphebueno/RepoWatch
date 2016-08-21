@@ -52,7 +52,7 @@ class RepoWatchController extends Controller
     private $whatsapp;
 
     /** @var bool usar configurações de dev ou production */
-    private $debug = true;
+    private $debug = false;
     
     /** @var string Id da conversa com o contato ou grupo que ira receber as notificacoes. Telegram */
     private $chatId;//Id Rinzler: 159867452
