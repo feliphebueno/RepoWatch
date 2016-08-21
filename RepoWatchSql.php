@@ -83,6 +83,19 @@ class RepoWatchSql
         return $qb;
     }
 
+    public function getIssueSql($id)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+        
+        $qb->select('*')
+           ->from('repositorio_issue')
+           ->where($qb->expr()->eq('repositorioIssueId', ':repositorioIssueId'))
+           ->setMaxResults(1)
+           ->setParameter('repositorioIssueId', $id, \PDO::PARAM_STR);
+
+        return $qb;
+    }
+
     public function getBranchSql($nome)
     {
         $qb = $this->con->qb('siprevcl_prod');
@@ -109,4 +122,18 @@ class RepoWatchSql
         return $qb;
     }
     
+    public function verificaAssignedSql($contributorCod, $repositorioIssueCod)
+    {
+        $qb = $this->con->qb('siprevcl_prod');
+
+        $qb->select('contributorCod')
+           ->from('repositorio_issue_assigned')
+           ->where($qb->expr()->eq('contributorCod', ':contributorCod'))
+           ->andWhere($qb->expr()->eq('repositorioIssueCod', ':repositorioIssueCod'))
+           ->setMaxResults(1)
+           ->setParameter('repositorioIssueCod', $repositorioIssueCod, \PDO::PARAM_INT)
+           ->setParameter('contributorCod', $contributorCod, \PDO::PARAM_INT);
+
+        return $qb;
+    }
 }

@@ -42,21 +42,22 @@ class RepoWatchClass extends RepoWatchSql
     private $tabela;
     private $precedencia;
     private $crudUtil;
-    private $banco;
+    private $confs;
     protected $con;
     
     public function __construct($cod = '')
     {
-        $this->cod = $cod;
-        $this->con = Conexao::conectar();
-        $this->crudUtil = new CrudUtil('siprevcl_prod');
-
+        $this->cod          = $cod;
+        $this->con          = Conexao::conectar();
+        $this->crudUtil     = new CrudUtil('siprevcl_prod');
+        $this->confs        = \App\Config::$SIS_CFG;
+        
         parent::__construct();
     }
     
     public function log($data)
     {
-        $filename = 'log/'. \date('d-m-Y_H-i-s') .'.log';
+        $filename = "../". \date('d-m-Y') .'.log';
         return \file_put_contents($filename, $data);
     }
        
@@ -293,6 +294,69 @@ class RepoWatchClass extends RepoWatchSql
         return $retorno;
     }
     
+    public function getDadosIssue($dados)
+    {
+        $issue = $dados['issue'];
+        
+        $id         = $issue['id'];
+        $name       = $issue['title'];
+
+        $retorno = [
+            'titulo'       => $name,
+            'id'           => $id
+        ];
+        
+        $dadosIssue = $this->con->execLinha(parent::getIssueSql($id));
+        
+        //User already exists.
+        if(\count($dadosIssue) > 0){
+
+            $retorno['repositorioIssueCod']  = $dadosIssue['repositorioissuecod'];
+            $closed = ($issue['state'] == 'open' ? 'O' : 'C');
+            
+            if($dadosIssue['repositorioissuestatus'] !== $closed){
+                $objForm = new \App\Ext\Form\Form();
+                $objForm->set('repositorioIssueStatus', "C");
+                $this->crudUtil->update('repositorio_issue', ['repositorioIssueStatus'], $objForm, ['repositorioIssueCod' => $dadosIssue['repositorioissuecod']], [], ['organogramaCod']);
+            }
+
+        } else {
+
+            $dadosUser         = $this->getDadosUser($issue['user']);
+            $dadosRepo         = $this->getDadosRepo($dados['repository']);
+
+            $objForm = new \App\Ext\Form\Form();
+            $objForm->set('repositorioCod', $dadosRepo['repositorioCod']);
+            $objForm->set('contributorCod', $dadosUser['contributorCod']);
+            $objForm->set('repositorioIssueId', $issue['id']);
+            $objForm->set('repositorioIssueTitulo', $issue['title']);
+            $objForm->set('repositorioIssueMensagem', $issue['body']);
+            $objForm->set('repositorioIssueUrl', $issue['url']);
+            $objForm->set('repositorioIssueComentarios', $issue['comments']);
+            $objForm->set('repositorioIssueData', $issue['created_at']);
+            $objForm->set('repositorioIssueDataClosed', $issue['closed_at']);
+            $objForm->set('repositorioIssueStatus', ($issue['state'] == 'open' ? 'O' : 'C'));
+
+            $campos = [
+                'repositorioCod',
+                'contributorCod',
+                'repositorioIssueId',
+                'repositorioIssueTitulo',
+                'repositorioIssueMensagem',
+                'repositorioIssueUrl',
+                'repositorioIssueComentarios',
+                'repositorioIssueData',
+                'repositorioIssueDataClosed',
+                'repositorioIssueStatus',
+            ];
+
+            $idRegistro = $this->crudUtil->insert('repositorio_issue', $campos, $objForm, ['organogramaCod']);
+            $retorno['repositorioIssueCod']  = $idRegistro;
+        }
+
+        return $retorno;
+    }
+    
     public function getDadosUser($dados)
     {
         if(isset($dados['login'])){
@@ -328,7 +392,7 @@ class RepoWatchClass extends RepoWatchSql
             $dadosContributor   = $this->getDadosAPI($urlUserAPI);
 
             $objForm = new \App\Ext\Form\Form();
-            $objForm->set('contributorNome', $dadosContributor['name']);
+            $objForm->set('contributorNome', (empty($dadosContributor['name']) ? $dadosContributor['login'] : $dadosContributor['name']));
             $objForm->set('contributorLogin', $dadosContributor['login']);
             $objForm->set('contributorId', $dadosContributor['id']);
             $objForm->set('contributorEmail', (isset($email) ? $email : $dadosContributor['email']));
@@ -361,15 +425,15 @@ class RepoWatchClass extends RepoWatchSql
         $client     = new \GuzzleHttp\Client(['verify' => false]);
         $response   = $client->get($url, [
             'auth' => [
-                '<github_user>',
-                '<user_token>'
+                $this->confs['apiKeys']['github']['user'],
+                $this->confs['apiKeys']['github']['passToken']
             ]
         ]);
 
         return \json_decode($response->getBody()->getContents(), true);
     }
     
-    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $link)
+    public function enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link)
     {
         $objForm = new \App\Ext\Form\Form();
         $objForm->set('usuarioCod', 2);
@@ -377,6 +441,7 @@ class RepoWatchClass extends RepoWatchSql
         $objForm->set('notificacaoTitulo', $titulo);
         $objForm->set('notificacaoDesc', $descricao);
         $objForm->set('notificacaoWarnLevel', $warnLevel);
+        $objForm->set('notificacaoIcon', $icon);
         $objForm->set('notificacaoDataHora', \date('Y-m-d H:i:s'));
         $objForm->set('notificacaoLink', $link);
 
@@ -386,6 +451,7 @@ class RepoWatchClass extends RepoWatchSql
             'notificacaoTitulo',
             'notificacaoDesc',
             'notificacaoWarnLevel',
+            'notificacaoIcon',
             'notificacaoDataHora',
             'notificacaoLink'
         ];
@@ -423,4 +489,31 @@ class RepoWatchClass extends RepoWatchSql
             'del'   => $del
         ];
     }
+    
+    public function registraAssigned($assignees, $repositorioIssueCod)
+    {
+        $objForm = new \App\Ext\Form\Form();
+        $objForm->set('repositorioIssueCod', $repositorioIssueCod);
+        $this->crudUtil->delete('repositorio_issue_assigned', ['repositorioIssueCod' => $repositorioIssueCod]);
+        $insert = 0;
+        foreach($assignees as $userAssigned){
+            $objForm->set('contributorCod', $this->getDadosUser($userAssigned)['contributorCod']);
+            $this->crudUtil->insert('repositorio_issue_assigned', ['repositorioIssueCod', 'contributorCod'], $objForm, ['organogramaCod']);
+            $insert++;
+        }
+        
+        return $insert;
+    }
+    
+    public function verificaAssigned($userAssigned, $repositorioIssueCod) 
+    {
+        $contributorCod = $this->getDadosUser($userAssigned)['contributorCod'];
+        return isset($this->con->execLinha(parent::verificaAssignedSql($contributorCod, $repositorioIssueCod))['contributorcod']);
+    }
+    
+    public function getDadosContributor($login)
+    {
+        return $this->con->execLinha(parent::getContributorSql($login));
+    }
+    
 }

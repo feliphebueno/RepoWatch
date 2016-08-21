@@ -2,7 +2,9 @@
     "name": "feliphebueno/repo-watch",
     "description": "Github repository watcher.",
     "require": {
-        "guzzlehttp/guzzle": "^6.1"
+        "centersis/zion": "dev-master",
+        "guzzlehttp/guzzle": "^6.1",
+        "whatsapp/chat-api": "v3.2.0.1"
     },
     "license": "GPL",
     "authors": [
