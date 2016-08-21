@@ -237,7 +237,7 @@ class RepoWatchController extends Controller
 
                 } elseif($payload['action'] === 'reopened' and isset($dadosIssue['id'])){
 
-                    $titulo = '';
+                    $titulo = ' ';
                     $descricao = $this->carregador->render('telegram/issues_reopened.html.twig', [
                         'issue'         => $issue,
                         'repositorio'   => $repositorio,
