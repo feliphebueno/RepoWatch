@@ -1,0 +1,87 @@
+<style>
+    table {
+        color: #000;
+    }
+    table th{
+        padding-left: 5px;
+        font-size: 13px;
+    }
+    table td {
+        padding-left: 5px;
+        font-size: 13px;
+    }
+</style>
+<table class="table-striped main">
+    <thead>
+        <tr class="logo">
+            <td colspan="6">
+                <img src="{{ logo | raw }}" />
+            </td>
+        </tr>
+        <tr class="space"></tr>
+        <tr>
+            <td colspan="6" class="titulo">
+                <h3><strong>{{ titulo }}</strong></h3>
+            </td>
+        </tr>
+        <tr class="space"><td>&nbsp;</td></tr>
+        <tr>
+            <td colspan="6" class="titulo">
+                <h4><strong>{{ subTitulo }}</strong></h4>
+            </td>
+        </tr>
+        <tr class="space"><td>&nbsp;</td></tr>
+        <tr>
+            <td class="data" colspan="6" style="font-size: 13px;">
+                Relatório emitido em {{ "now"|date('d/m/Y H:i:s') }}.
+            </td>
+        </tr>
+        <tr class="space"><td>&nbsp;</td></tr>
+        {% if servidores[0].datahora is not empty %}
+        <tr>
+            <th width="6%" class="padding-left-5">#</th>
+            <th width="50%">Nome</th>
+            <th width="10%">Matricula</th>
+            <th>CPF</th>
+            <th>Data/Hora</th>
+        </tr>
+        {% else %}
+            <tr>
+                <th width="10%" class="padding-left-5">#</th>
+                <th width="60%">Nome</th>
+                <th width="10%">Matricula</th>
+                <th width="20%">CPF</th>
+            </tr>
+        {% endif %}
+    </thead>
+    <tbody>
+        {% for pessoa in servidores %}
+            {% set k = k + 1 %}
+            {% if servidores[0].datahora is not empty %}
+                <tr>
+                    <td>{{ k }}</td>
+                    <td>{{ pessoa.nome }}</td>
+                    <td>{{ pessoa.matricula }}</td>
+                    <td>{{ pessoa.cpf }}</td>
+                    <td>{{ pessoa.datahora|date('d/m/Y h:i') }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td>{{ k }}</td>
+                    <td>{{ pessoa.nome }}</td>
+                    <td>{{ pessoa.matricula }}</td>
+                    <td>{{ pessoa.cpf }}</td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+        <tr>
+            {% if servidores[0].datahora is not empty %}
+                <td colspan="4" style="text-align: right; height: 25px;">Total de {{ subTitulo|lower }}</td>
+                <td>{{ servidores|length }}</td>
+            {% else %}
+                <td colspan="3" style="text-align: right; height: 25px;">Total de {{ subTitulo|lower }}</td>
+                <td>{{ servidores|length }}</td>
+            {% endif %}
+        </tr>
+    </tbody>
+</table>

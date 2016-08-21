@@ -25,7 +25,7 @@ class Telegram extends TelegramVO
                 'chat_id'                       => $this->getChatId(),
                 'text'                          => $this->getMsg(),
                 'parse_mode'                    => 'HTML',
-                'disable_web_page_preview'      => true
+                'disable_web_page_preview'      => 'true'
             ]
         );
     }

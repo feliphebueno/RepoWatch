@@ -1,18 +1,23 @@
 <?php
-namespace Whatsapp;
-require_once './WhatsappVO.php';
+namespace RepoWatch\WhatsApp;
 
 class Whatsapp extends WhatsappVO 
-{
-
-    public function __construct()
+{    
+    public function __construct($waUid = null, $waPwd = null)
     {
+        if(\is_null($waUid) === false){
+            $this->setWaUid($waUid);
+        }
+        if(\is_null($waPwd) === false){
+            $this->setWaPwd($waPwd);
+        }
+        
         return $this;
     }
 
     public function sendMessage($waMsg, $waRecp = NULL)
     {
-        if(\is_null($recp) === false){
+        if(\is_null($waRecp) === false){
             $this->setWaRecp($waRecp);
         }
         
@@ -44,6 +49,7 @@ class Whatsapp extends WhatsappVO
     
     private function execute($formParams)
     {
+        return $this->executeAPI($formParams);
         $client     = new \GuzzleHttp\Client(['verify' => false]);
         $response   = $client->request('POST', $this->getUrlAPI(), [
             'form_params' => $formParams
@@ -51,7 +57,22 @@ class Whatsapp extends WhatsappVO
 
         return \json_decode($response->getBody()->getContents(), true);
     }
-    
+    private function executeAPI($formParams)
+    {
+        $wa = new \WhatsProt($formParams['wa_uid'], 'WhatsApp', false);
+        $wa->eventManager()->bind('onGetSyncResult', 'onSyncResult');
+
+        $wa->connect();
+        $wa->loginWithPassword($formParams['wa_pwd']);
+
+        $send = $wa->sendMessage($formParams['wa_recp'] , $formParams['wa_msg']);
+
+        $wa->pollMessage();
+        \sleep(2);
+        $wa->pollMessage();
+        
+        return $send;
+    }
     
     /**
      * 

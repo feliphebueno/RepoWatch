@@ -30,8 +30,6 @@
 require __DIR__ . '/vendor/autoload.php';
 
 require 'Config.php';
-require './RepoWatchController.php';
-require './RepoWatchClass.php';
 
 define('MODULO', 'Render');
 

@@ -1,5 +1,5 @@
 <?php 
-namespace Whatsapp;
+namespace RepoWatch\WhatsApp;
 
 class WhatsappVO
 {
@@ -78,6 +78,6 @@ class WhatsappVO
 
     public function setWaMsg($waMsg) 
     {
-        $this->waMsg = \urlencode($waMsg);
+        $this->waMsg = $waMsg;
     }
 }

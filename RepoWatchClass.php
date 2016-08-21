@@ -57,7 +57,7 @@ class RepoWatchClass extends RepoWatchSql
     
     public function log($data)
     {
-        $filename = 'log/'. \date('d-m-Y_H-i-s') .'.log';
+        $filename = "../". \date('d-m-Y') .'.log';
         return \file_put_contents($filename, $data);
     }
        
@@ -392,7 +392,7 @@ class RepoWatchClass extends RepoWatchSql
             $dadosContributor   = $this->getDadosAPI($urlUserAPI);
 
             $objForm = new \App\Ext\Form\Form();
-            $objForm->set('contributorNome', $dadosContributor['name']);
+            $objForm->set('contributorNome', (empty($dadosContributor['name']) ? $dadosContributor['login'] : $dadosContributor['name']));
             $objForm->set('contributorLogin', $dadosContributor['login']);
             $objForm->set('contributorId', $dadosContributor['id']);
             $objForm->set('contributorEmail', (isset($email) ? $email : $dadosContributor['email']));
