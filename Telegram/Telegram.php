@@ -12,7 +12,7 @@ class Telegram extends TelegramVO
         return $this;
     }
 
-    public function sendMessage($msg, $chatId = NULL)
+    public function sendMessage($msg, $chatId = NULL, $parse_mode = 'HTML')
     {
         if(\is_null($chatId) === false){
             $this->setChatId($chatId);
@@ -24,7 +24,7 @@ class Telegram extends TelegramVO
             [
                 'chat_id'                       => $this->getChatId(),
                 'text'                          => $this->getMsg(),
-                'parse_mode'                    => 'HTML',
+                'parse_mode'                    => $parse_mode,
                 'disable_web_page_preview'      => 'true'
             ]
         );
