@@ -70,7 +70,7 @@ class RepoWatchController extends Controller
         $this->trata        = Valida::instancia();
 
         $this->telegram = new Telegram('bot219721426:AAGO9F8YIh0grhp41Ww_tCMoBnG36TUeQys');
-        $this->whatsapp = new Whatsapp('16464574271', 'SuKDfv7YTH8lQk1uF3F9JbSpfEY=');
+        $this->whatsapp = new Whatsapp();
 
         $this->chatId   = ($this->debug === false ? '-157961528' : '159867452');//true = set Rinzler chatId, false = set BRA Dev Team Group chatId
         $this->jID      = ($this->debug === false ? '556593152857-1471434261@g.us' : '556593152857');//true = set Rinzler jID, false = set BRA Dev Team Group jID
@@ -182,8 +182,7 @@ class RepoWatchController extends Controller
                     $hora           = \substr($issue['created_at'], 11, 5);
 
                     $user           = $this->class->getDadosAPI($comment['user']['url']);
-                    
-                    $titulo = ' ';
+
                     $descricao = $this->carregador->render('telegram/issue_comment.html.twig', [
                         'issue'         => $issue,
                         'repositorio'   => $repositorio,
@@ -191,9 +190,16 @@ class RepoWatchController extends Controller
                         'tipo'          => $tipo,
                         'comment'       => $this->trataUsuariosMencionados($payload['comment']['body'])
                     ]);
-                    
-                    $this->telegram->sendMessage($titulo . $descricao, $this->chatId, 'markdown');
-                    //$this->whatsapp->sendMessage($titulo . $descricao, $this->jID);
+                    $this->telegram->sendMessage($descricao, $this->chatId, 'markdown');
+
+                    $descricaoW = $this->carregador->render('whatsapp/issue_comment.html.twig', [
+                        'issue'         => $issue,
+                        'repositorio'   => $repositorio,
+                        'user'          => $user,
+                        'tipo'          => $tipo,
+                        'comment'       => $this->trataUsuariosMencionados($payload['comment']['body'])
+                    ]);
+                    $this->whatsapp->sendMessage($descricaoW, $this->jID);
                 }
                 
                 break;
@@ -269,7 +275,7 @@ class RepoWatchController extends Controller
                 } elseif($payload['action'] === 'labeled' and $issue['state'] = 'open' and isset($dadosIssue['id'])){
                     
                     $labels = $this->getLabels($issue['labels'], $payload['repository']['html_url']);
-                    if(\in_array('trabalhando nisso', $labels) === true or \in_array('2 - Working <= 5', $labels) === true){
+                    if(\in_array('trabalhando nisso', $labels) === true){
                         $descricao = $this->carregador->render('telegram/issues_labeled.html.twig', [
                             'issue'         => $issue,
                             'repositorio'   => $repositorio,
@@ -287,7 +293,8 @@ class RepoWatchController extends Controller
                 $link       = $issue['html_url'];
 
                 $this->telegram->sendMessage($descricao, $this->chatId, 'markdown');
-                
+                $this->whatsapp->sendMessage($descricao, $this->jID);
+
                 if($payload['action'] === 'closed'){
                     $this->telegram->sendSticker('./Telegram/stickers/fist.webp', $this->chatId);
                 } elseif($payload['action'] === 'reopened'){

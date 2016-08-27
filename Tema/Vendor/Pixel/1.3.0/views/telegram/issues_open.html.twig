@@ -1,6 +1,6 @@
 Nova Issue aberta no repositório [{{ repositorio.name }}]({{ repositorio.html_url|raw}}).
 
-A issue de número [#{{ issue.number }}]({{ issue.html_url|raw }}) acaba de ser aberta por [@{{ user.login }}]({{ user.html_url|raw }}) em *{{ data|raw }}*, às *{{ hora|raw }}*.
+A issue de número [#{{ issue.number }} - {{ issue.title }}]({{ issue.html_url|raw }}) acaba de ser aberta por [@{{ user.login }}]({{ user.html_url|raw }}) em *{{ data|raw }}*, às *{{ hora|raw }}*.
 {% if assignedes is not empty %}
 
     {{ assigneds|raw }}
