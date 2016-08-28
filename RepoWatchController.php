@@ -69,7 +69,7 @@ class RepoWatchController extends Controller
         $this->carregador   = new Carregador(__NAMESPACE__);
         $this->trata        = Valida::instancia();
 
-        $this->telegram = new Telegram('bot219721426:AAGO9F8YIh0grhp41Ww_tCMoBnG36TUeQys');
+        $this->telegram = new Telegram();
         $this->whatsapp = new Whatsapp();
 
         $this->chatId   = ($this->debug === false ? '-157961528' : '159867452');//true = set Rinzler chatId, false = set BRA Dev Team Group chatId

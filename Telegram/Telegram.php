@@ -3,12 +3,18 @@ namespace RepoWatch\Telegram;
 
 class Telegram extends TelegramVO 
 {
+    private $confs;
 
     public function __construct($token = NULL)
     {
+        $this->confs        = \App\Config::$SIS_CFG;
+
         if(\is_null($token) === false){
             $this->setToken($token);
+        } else {
+            $this->setToken($this->confs['apiKeys']['telegram']['botID']);
         }
+
         return $this;
     }
 
