@@ -104,6 +104,48 @@ class RepoWatchController extends Controller
         switch ($evento) {
 
             case 'create':
+
+                $type = (isset($payload['ref_type']) === true ? $payload['ref_type'] : false);
+
+                //TAG RELEASE
+                if($type === 'tag'){
+                    $usuarios       = [1];//UsuarioCod do SiprevCloud
+
+                    $user           = $this->class->getDadosAPI($payload['sender']['url']);
+                    $repositorio    = $payload['repository'];
+
+                    $ref            = $payload['ref'];
+
+                    $releases       = $this->class->getDadosAPI(\preg_replace('/[{\/id}]{5}/', '', $repositorio['releases_url']));
+
+                    $release        = $releases[0];
+
+                    $data           = $this->trata->data()->converteData(\substr($release['created_at'], 0, 10));
+                    $hora           = \substr($release['created_at'], 11, 5);
+                    
+                    $title          = $release['name'];
+                    $body           = $release['body'];
+
+                    $releaseUrl     = $repositorio['html_url'] .'/releases/tag/'. $ref;
+                    
+                    $descricao = $this->carregador->render('telegram/release_created.html.twig', [
+                        'repositorio'   => $repositorio,
+                        'user'          => $user,
+                        'title'         => $title,
+                        'descricao'     => $body,
+                        'tag'           => $ref,
+                        'data'          => $data,
+                        'hora'          => $hora,
+                        'releaseUrl'    => $releaseUrl
+                    ]);
+
+                    //send message
+                    $this->telegram->sendMessage($descricao, $this->chatId, 'markdown');
+
+                    //send image
+                    $this->telegram->sendSticker('./Telegram/stickers/tag_release.png', $this->chatId);
+                }
+                
                 break;
             case 'delete':
                 break;
