@@ -60,21 +60,18 @@ class RepoWatchController extends Controller
     /** @var string Id da conversa com o contato ou grupo que ira receber as notificacoes. Whatsapp */
     private $jID;//Id Rinzler: 159867452
 
-//SuKDfv7YTH8lQk1uF3F9JbSpfEY=
-//16464574271
-
     public function __construct()
     {
         $this->class        = new RepoWatchClass();
         $this->carregador   = new Carregador(__NAMESPACE__);
         $this->trata        = Valida::instancia();
 
-        $this->telegram = new Telegram('bot219721426:AAGO9F8YIh0grhp41Ww_tCMoBnG36TUeQys');
-        $this->whatsapp = new Whatsapp('16464574271', 'SuKDfv7YTH8lQk1uF3F9JbSpfEY=');
+        $this->telegram = new Telegram();
+        $this->whatsapp = new Whatsapp();
 
         $this->chatId   = ($this->debug === false ? '-157961528' : '159867452');//true = set Rinzler chatId, false = set BRA Dev Team Group chatId
         $this->jID      = ($this->debug === false ? '556593152857-1471434261@g.us' : '556593152857');//true = set Rinzler jID, false = set BRA Dev Team Group jID
-    } 
+    }
     
     protected function iniciar()
     {
@@ -87,7 +84,8 @@ class RepoWatchController extends Controller
         try {
 
             $this->processaEvento($dadosRequest['HTTP_X_GITHUB_EVENT'], $payload);
-            
+
+        /** @var \Exception $e Exception encontrada durante execução da ação. */
         } catch (\Exception $e){
             return \json_encode([
                 'sucesso' => false, 
@@ -172,10 +170,9 @@ class RepoWatchController extends Controller
                 if($payload['action'] === 'created' and $issue['state'] == 'open' and isset($dadosIssue['id'])) {
                     $usuarios       = [1];
 
+                    $repositorio    = $payload['repository'];
                     $issue          = $payload['issue'];
                     $comment        = $payload['comment'];
-                    
-                    $mencionados    = $this->getUsuariosMencionados($payload['comment']);
                     
                     $tipo           = (\preg_match('/[pull]{4}/', $issue['html_url']) === true ? "no pull request" : "na issue");
 
@@ -184,27 +181,21 @@ class RepoWatchController extends Controller
 
                     $user           = $this->class->getDadosAPI($comment['user']['url']);
 
-                    $titulo     = 'Nova interação '. $tipo .' de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
-                                . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:\n\n";
-                    
-                    if($mencionados['count'] > 0){
-                        $descricao = 'O usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> adicionou um novo comentário mencionando o(s) usuário(s):\n";
-                        $descricao .= $mencionados['texto'];
-                    } else {
-                        $descricao = 'O usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> adicionou um novo comentário.\n";
-                    }
-                    
-                    $descricao .= "----\n";
-                    
-                    $this->telegram->sendMessage($titulo . $descricao, $this->chatId);
-                    //$this->whatsapp->sendMessage($titulo . $descricao, $this->jID);
+                    $descricao = $this->carregador->render('telegram/issue_comment.html.twig', [
+                        'issue'         => $issue,
+                        'repositorio'   => $repositorio,
+                        'user'          => $user,
+                        'tipo'          => $tipo,
+                        'comment'       => $this->trataUsuariosMencionados($payload['comment']['body'])
+                    ]);
+                    $this->telegram->sendMessage($descricao, $this->chatId, 'markdown');
                 }
                 
                 break;
             case 'issues':
 
                 $dadosIssue = $this->class->getDadosIssue($payload);
-                
+
                 $usuarios       = [1];//UsuarioCod do SiprevCloud
 
                 $user           = $this->class->getDadosAPI($payload['sender']['url']);
@@ -220,24 +211,31 @@ class RepoWatchController extends Controller
                     
                     $assignees = $this->getUsuariosDesignados($payload, $repositorioIssueCod);
 
-                    $titulo     = 'Nova Issue aberta no repositório <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>\n\n";
-                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a> acaba de ser aberta por <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] .'</a>,'
-                                  .' em <strong>'. $data .'</strong>, as <strong>'. $hora .'</strong>.';
-
+                    $assigneds = NULL;
                     if(\count($assignees['count']) > 0){
                         $this->class->registraAssigned($issue['assignees'], $repositorioIssueCod);
-                        $descricao .= "\n\n". $assignees['texto'];
+                        $assigneds = $assignees['texto'];
                     }
+
+                    $descricao = $this->carregador->render('telegram/issues_open.html.twig', [
+                        'issue'         => $issue,
+                        'repositorio'   => $repositorio,
+                        'user'          => $user,
+                        'assigneds'     => $assigneds,
+                        'data'          => $data,
+                        'hora'          => $hora,
+                    ]);
 
                 } elseif($payload['action'] === 'closed' and isset($dadosIssue['id'])){
 
-                    $titulo     = "Parabéns! Mais uma demanda implementada, testada e homologada.\n";
-                    $descricao  = 'A issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositório <a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>"
-                                .' acaba de ser fechada pelo usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a>.\n";
-
+                    $descricao = $this->carregador->render('telegram/issues_closed.html.twig', [
+                        'issue'         => $issue,
+                        'repositorio'   => $repositorio,
+                        'user'          => $user,
+                    ]);
+                    
                 } elseif($payload['action'] === 'reopened' and isset($dadosIssue['id'])){
 
-                    $titulo = ' ';
                     $descricao = $this->carregador->render('telegram/issues_reopened.html.twig', [
                         'issue'         => $issue,
                         'repositorio'   => $repositorio,
@@ -249,9 +247,13 @@ class RepoWatchController extends Controller
                     $assigneds = $this->getUsuariosDesignados($payload, $repositorioIssueCod);
                     $this->class->registraAssigned($issue['assignees'], $repositorioIssueCod);
                     if($assigneds['count'] > 0){
-                        $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
-                                    . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:";
-                        $descricao = "\n\n". $assigneds['texto'];
+
+                        $descricao = $this->carregador->render('telegram/issues_assigned.html.twig', [
+                            'issue'         => $issue,
+                            'repositorio'   => $repositorio,
+                            'user'          => $user,
+                            'assigneds'    => $assigneds['texto'],
+                        ]);
                     } else {
                         return;
                     }
@@ -263,9 +265,11 @@ class RepoWatchController extends Controller
                     
                     $labels = $this->getLabels($issue['labels'], $payload['repository']['html_url']);
                     if(\in_array('trabalhando nisso', $labels) === true){
-                        $titulo     = 'Nova interação na issue de número <a href="'. $issue['html_url'] .'" target="_blank">#'. $issue['number'] .'</a>, do repositorio '
-                                    . '<a href="'. $payload['repository']['html_url'] .'" target="_blank">'. $payload['repository']['name'] ."</a>:\n";
-                        $descricao  = 'O usuário <a href="'. $user['html_url'] .'" target="_blank">@'. $user['login'] ."</a> está trabalhando nesta tarefa.\n";
+                        $descricao = $this->carregador->render('telegram/issues_labeled.html.twig', [
+                            'issue'         => $issue,
+                            'repositorio'   => $repositorio,
+                            'user'          => $user,
+                        ]);
                     } else {
                         return;
                     }
@@ -273,20 +277,19 @@ class RepoWatchController extends Controller
                     return;
                 }
 
-                $descricao .= "----\n";
-
                 $warnLevel  =  'info';
                 $icon       =  'fa-github';
                 $link       = $issue['html_url'];
-                $this->telegram->sendMessage($titulo . $descricao, $this->chatId);
-                //$this->whatsapp->sendMessage($titulo . $descricao, $this->jID);
-                
+
+                $this->telegram->sendMessage($descricao, $this->chatId, 'markdown');
+
                 if($payload['action'] === 'closed'){
                     $this->telegram->sendSticker('./Telegram/stickers/fist.webp', $this->chatId);
                 } elseif($payload['action'] === 'reopened'){
                     $this->telegram->sendSticker('./Telegram/stickers/bugginho.png', $this->chatId);
                 }
 
+                $titulo = $issue['title'];
                 foreach($usuarios as $usuarioCod){
                     $this->class->enviaNotificacao($usuarioCod, $titulo, $descricao, $warnLevel, $icon, $link);
                 }
@@ -313,9 +316,9 @@ class RepoWatchController extends Controller
             
             if($this->class->verificaAssigned($userAssigned, $repositorioIssueCod) === false){
                 if($userAssigned['id'] == $sender['id']){
-                    $selfAssigned = 'O usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a> se auto-nomeu para esta tarefa.\n";
+                    $selfAssigned = "O usuário [@". $userAssigned['login'] ."](". $userAssigned['html_url'] .") se auto-nomeu-se a si mesmo para esta tarefa.\n";
                 } else {
-                    $designados .= 'Esta tarefa foi atribuída ao  usuário <a href="'. $userAssigned['html_url'] .'" target="_blank">@'. $userAssigned['login'] ."</a>.\n";
+                    $designados .= "Esta tarefa foi atribuída ao  usuário [@". $userAssigned['login'] ."](". $userAssigned['html_url'] .").\n";
                 }
                 $count++;
             }
@@ -333,32 +336,20 @@ class RepoWatchController extends Controller
         $labelsUrl  = $repoUrl .'/labels/';
 
         foreach($labels as $label){
-            $definicao['text'] = '<a href="'. $labelsUrl . $label['name'] .'" target="_blank">'. \strtoupper($label['name']) ."</a>\n";
-            $definicao['name'] = $label['name'];
+            \array_push($definicao, $label['name']);
         }
 
         return $definicao;
     }
     
-    public function getUsuariosMencionados($comment)
+    public function trataUsuariosMencionados($comment)
     {
         $texto = '';
-        $users = [];
-        \preg_match_all('/\@[0-9A-z]{2,}/', $comment['body'], $users);
-        $count = 0;
-
-        if(\count($users[0]) > 0){
-            foreach($users[0] as $user) {
-                $dadosContributor = $this->class->getDadosContributor(\substr($user, 1));
-                $texto .= '<a href="'. $dadosContributor['contributorurl'] .'" target="_blank">@'. $dadosContributor['contributorlogin'] ."</a>\n";
-                $count++;
-            }
-        }
-
-        $users['count'] = $count;
-        return [
-            'texto' => $texto,
-            'count' => $count
-        ];
+        $class = $this->class;
+        return \preg_replace_callback('/\@[0-9A-z]{2,}/', function($user) use($class) {
+                $dadosContributor = $class->getDadosContributor(\substr($user[0], 1));
+                return "[@". $dadosContributor['contributorlogin'] ."](". $dadosContributor['contributorurl'] .")";
+            
+        }, $comment);
     }
 }

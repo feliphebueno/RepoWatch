@@ -113,7 +113,7 @@ function apiRequestJson($method, $parameters) {
     return exec_curl_request($handle);
 }
 
-function processMessage($message) {
+function processMessage($message) {print_r($message);
     // process incoming message
     $message_id = $message['message_id'];
     $chat_id = $message['chat']['id'];
@@ -138,7 +138,7 @@ function processMessage($message) {
     }
 }
 
-define('WEBHOOK_URL', 'http://t1.virtuaserver.com.br/~siprevcloudcom/RepoWatch/');
+define('WEBHOOK_URL', 'https://t1.virtuaserver.com.br/~siprevcloudcom/ChatWatch/Telegram/setNewUpdates/btk/bot'. \BOT_TOKEN);
 
 if (php_sapi_name() == 'cli') {
     // if run from console, set or delete webhook
@@ -146,6 +146,7 @@ if (php_sapi_name() == 'cli') {
     exit("\nEND\n");
 }
 
+print_r(apiRequest('getUpdates', ['offset' => 0, 'limit' => 100]));
 
 $content = file_get_contents("php://input");
 $update = json_decode($content, true);

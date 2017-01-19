@@ -3,15 +3,24 @@ namespace RepoWatch\WhatsApp;
 
 class Whatsapp extends WhatsappVO 
 {    
+    private $confs;
+
     public function __construct($waUid = null, $waPwd = null)
     {
+        $this->confs        = \App\Config::$SIS_CFG;
+
         if(\is_null($waUid) === false){
             $this->setWaUid($waUid);
+        } else {
+            $this->setWaUid($this->confs['apiKeys']['whatsapp']['user']);
         }
+
         if(\is_null($waPwd) === false){
             $this->setWaPwd($waPwd);
+        } else {
+            $this->setWaPwd($this->confs['apiKeys']['whatsapp']['pass']);
         }
-        
+
         return $this;
     }
 
@@ -21,11 +30,9 @@ class Whatsapp extends WhatsappVO
             $this->setWaRecp($waRecp);
         }
         
-        return $this->setUrlAPI('http://wapi.phphive.info/api/message/send.php')
-            ->setWaMsg($waMsg)
+        return $this->setWaMsg($waMsg)
             ->execute(
             [
-                'token'     => $this->getToken(),
                 'wa_uid'    => $this->getWaUid(),
                 'wa_pwd'    => $this->getWaPwd(),
                 'wa_recp'   => $this->getWaRecp(),
@@ -49,29 +56,25 @@ class Whatsapp extends WhatsappVO
     
     private function execute($formParams)
     {
-        return $this->executeAPI($formParams);
-        $client     = new \GuzzleHttp\Client(['verify' => false]);
-        $response   = $client->request('POST', $this->getUrlAPI(), [
-            'form_params' => $formParams
-        ]);
-
-        return \json_decode($response->getBody()->getContents(), true);
-    }
-    private function executeAPI($formParams)
-    {
         $wa = new \WhatsProt($formParams['wa_uid'], 'WhatsApp', false);
-        $wa->eventManager()->bind('onGetSyncResult', 'onSyncResult');
-
+        //$wa->eventManager()->bind('onGetSyncResult', 'onSyncResult');
+        
         $wa->connect();
         $wa->loginWithPassword($formParams['wa_pwd']);
 
+        //send dataset to server
+        //$wa->sendSync(['+556593152857']);
+        
         $send = $wa->sendMessage($formParams['wa_recp'] , $formParams['wa_msg']);
 
         $wa->pollMessage();
         \sleep(2);
         $wa->pollMessage();
         
+        $wa->sendOfflineStatus();
+        
         return $send;
+
     }
     
     /**

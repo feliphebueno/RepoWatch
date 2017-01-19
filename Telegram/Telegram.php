@@ -3,16 +3,22 @@ namespace RepoWatch\Telegram;
 
 class Telegram extends TelegramVO 
 {
+    private $confs;
 
     public function __construct($token = NULL)
     {
+        $this->confs        = \App\Config::$SIS_CFG;
+
         if(\is_null($token) === false){
             $this->setToken($token);
+        } else {
+            $this->setToken($this->confs['apiKeys']['telegram']['botID']);
         }
+
         return $this;
     }
 
-    public function sendMessage($msg, $chatId = NULL)
+    public function sendMessage($msg, $chatId = NULL, $parse_mode = 'HTML')
     {
         if(\is_null($chatId) === false){
             $this->setChatId($chatId);
@@ -24,7 +30,7 @@ class Telegram extends TelegramVO
             [
                 'chat_id'                       => $this->getChatId(),
                 'text'                          => $this->getMsg(),
-                'parse_mode'                    => 'HTML',
+                'parse_mode'                    => $parse_mode,
                 'disable_web_page_preview'      => 'true'
             ]
         );
